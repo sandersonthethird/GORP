@@ -9,6 +9,7 @@ import ChatInterface from '../components/chat/ChatInterface'
 import type { Meeting } from '../../shared/types/meeting'
 import type { MeetingTemplate } from '../../shared/types/template'
 import type { DriveShareResponse } from '../../shared/types/drive'
+import type { WebShareResponse } from '../../shared/types/web-share'
 import styles from './MeetingDetail.module.css'
 
 function formatTime(seconds: number): string {
@@ -393,6 +394,26 @@ export default function MeetingDetail() {
     }
   }, [activeTab, data, summaryDraft])
 
+  const handleWebShare = useCallback(async () => {
+    if (!id) return
+    setShareMenuOpen(false)
+    try {
+      const result = await window.api.invoke<WebShareResponse>(
+        IPC_CHANNELS.WEB_SHARE_CREATE,
+        id
+      )
+      if (result.success) {
+        await navigator.clipboard.writeText(result.url)
+        alert(`Web share link copied to clipboard:\n${result.url}`)
+      } else {
+        alert(result.message)
+      }
+    } catch (err) {
+      console.error('Failed to create web share:', err)
+      alert('Failed to create web share.')
+    }
+  }, [id])
+
   // Only show recording UI if THIS meeting is the one being recorded
   const isThisMeetingRecording = isRecording && recordingMeetingId === id
 
@@ -489,6 +510,9 @@ export default function MeetingDetail() {
                   </button>
                   <button className={styles.shareMenuItem} onClick={handleCopyText}>
                     Copy text
+                  </button>
+                  <button className={styles.shareMenuItem} onClick={handleWebShare}>
+                    Share to web
                   </button>
                 </div>
               )}

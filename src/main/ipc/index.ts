@@ -7,6 +7,7 @@ import { registerSummaryHandlers } from './summary.ipc'
 import { registerCalendarHandlers } from './calendar.ipc'
 import { registerDriveHandlers } from './drive.ipc'
 import { registerChatHandlers } from './chat.ipc'
+import { registerWebShareHandlers } from './web-share.ipc'
 
 export function registerAllHandlers(): void {
   registerMeetingHandlers()
@@ -18,4 +19,5 @@ export function registerAllHandlers(): void {
   registerCalendarHandlers()
   registerDriveHandlers()
   registerChatHandlers()
+  registerWebShareHandlers()
 }

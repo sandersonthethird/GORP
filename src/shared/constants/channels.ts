@@ -67,6 +67,9 @@ export const IPC_CHANNELS = {
   DRIVE_GET_SHARE_LINK: 'drive:get-share-link',
   DRIVE_HAS_SCOPE: 'drive:has-scope',
 
+  // Web Share
+  WEB_SHARE_CREATE: 'web-share:create',
+
   // App
   APP_CHECK_PERMISSIONS: 'app:check-permissions',
   APP_OPEN_STORAGE_DIR: 'app:open-storage-dir',
