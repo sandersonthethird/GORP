@@ -10,6 +10,7 @@ import type { Meeting } from '../../shared/types/meeting'
 import type { MeetingTemplate } from '../../shared/types/template'
 import type { DriveShareResponse } from '../../shared/types/drive'
 import type { WebShareResponse } from '../../shared/types/web-share'
+import ReactMarkdown from 'react-markdown'
 import styles from './MeetingDetail.module.css'
 
 function formatTime(seconds: number): string {
@@ -50,7 +51,9 @@ export default function MeetingDetail() {
   const [notesDraft, setNotesDraft] = useState('')
   const notesSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [summaryDraft, setSummaryDraft] = useState('')
+  const [editingSummary, setEditingSummary] = useState(false)
   const summarySaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const summaryTextareaRef = useRef<HTMLTextAreaElement>(null)
   const startRecording = useRecordingStore((s) => s.startRecording)
   const stopRecording = useRecordingStore((s) => s.stopRecording)
   const pauseRecording = useRecordingStore((s) => s.pauseRecording)
@@ -668,19 +671,32 @@ export default function MeetingDetail() {
                 </div>
                 {isGenerating ? (
                   <div className={styles.markdown}>
-                    {streamedSummary}
+                    <ReactMarkdown>{streamedSummary}</ReactMarkdown>
                   </div>
                 ) : findOpen && findQuery ? (
                   <div className={styles.markdown}>
                     {highlightedContent}
                   </div>
-                ) : (
+                ) : editingSummary ? (
                   <textarea
+                    ref={summaryTextareaRef}
                     className={styles.summaryTextarea}
                     value={summaryDraft}
                     onChange={handleSummaryChange}
+                    onBlur={() => setEditingSummary(false)}
                     placeholder="Summary content..."
                   />
+                ) : (
+                  <div
+                    className={styles.markdown}
+                    onClick={() => {
+                      setEditingSummary(true)
+                      setTimeout(() => summaryTextareaRef.current?.focus(), 0)
+                    }}
+                    title="Click to edit"
+                  >
+                    <ReactMarkdown>{summaryDraft}</ReactMarkdown>
+                  </div>
                 )}
               </>
             )}

@@ -493,7 +493,92 @@
 }
 
 .markdown {
-  white-space: pre-wrap;
+  cursor: pointer;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  transition: border-color 0.15s, background 0.15s;
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+.markdown:hover {
+  border-color: var(--color-border);
+  background: var(--color-card-bg);
+}
+
+.markdown h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 12px 0 2px;
+}
+
+.markdown h2 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 10px 0 2px;
+}
+
+.markdown h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 8px 0 1px;
+}
+
+.markdown h1:first-child,
+.markdown h2:first-child,
+.markdown h3:first-child {
+  margin-top: 0;
+}
+
+.markdown p {
+  margin: 1px 0;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 1px 0;
+  padding-left: 24px;
+}
+
+.markdown ul {
+  list-style-type: disc;
+}
+
+.markdown ol {
+  list-style-type: decimal;
+}
+
+.markdown li {
+  margin: 0;
+  padding: 0;
+}
+
+.markdown li > ul,
+.markdown li > ol {
+  margin: 0;
+}
+
+.markdown strong {
+  font-weight: 700;
+}
+
+.markdown em {
+  font-style: italic;
+}
+
+.markdown code {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  background: var(--color-bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.markdown hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 12px 0;
 }
 
 .transcriptTab {

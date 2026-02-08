@@ -19,6 +19,7 @@ export const IPC_CHANNELS = {
   CALENDAR_CONNECT: 'calendar:connect',
   CALENDAR_DISCONNECT: 'calendar:disconnect',
   CALENDAR_EVENTS: 'calendar:events',
+  CALENDAR_EVENTS_RANGE: 'calendar:events-range',
   CALENDAR_SYNC: 'calendar:sync',
   CALENDAR_IS_CONNECTED: 'calendar:is-connected',
   CALENDAR_REAUTHORIZE: 'calendar:reauthorize',

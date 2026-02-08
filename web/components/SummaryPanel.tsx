@@ -63,7 +63,7 @@ export default function SummaryPanel({
           <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">
             Summary
           </h2>
-          <div className="prose prose-sm dark:prose-invert max-w-none">
+          <div className="summary-markdown text-sm text-gray-800 dark:text-gray-200 leading-relaxed max-w-none">
             <ReactMarkdown>{summary}</ReactMarkdown>
           </div>
         </div>

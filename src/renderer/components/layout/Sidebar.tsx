@@ -3,8 +3,9 @@ import styles from './Sidebar.module.css'
 import { useRecordingStore } from '../../stores/recording.store'
 import { useAppStore } from '../../stores/app.store'
 import { IPC_CHANNELS } from '../../../shared/constants/channels'
-import CalendarBadge from '../meetings/CalendarBadge'
+import MiniCalendar from './MiniCalendar'
 import type { CalendarEvent } from '../../../shared/types/calendar'
+import type { Meeting } from '../../../shared/types/meeting'
 
 export default function Sidebar() {
   const navigate = useNavigate()
@@ -13,8 +14,6 @@ export default function Sidebar() {
   const calendarConnected = useAppStore((s) => s.calendarConnected)
   const dismissedEventIds = useAppStore((s) => s.dismissedEventIds)
   const dismissEvent = useAppStore((s) => s.dismissEvent)
-
-  const visibleEvents = calendarEvents.filter((e) => !dismissedEventIds.has(e.id))
 
   const handleRecordFromCalendar = async (event: CalendarEvent) => {
     try {
@@ -27,6 +26,27 @@ export default function Sidebar() {
     } catch (err) {
       console.error('Failed to start recording:', err)
     }
+  }
+
+  const handlePrepareFromCalendar = async (event: CalendarEvent) => {
+    try {
+      const meeting = await window.api.invoke<Meeting>(
+        IPC_CHANNELS.MEETING_PREPARE,
+        event.id,
+        event.title,
+        event.startTime,
+        event.platform || undefined,
+        event.meetingUrl || undefined,
+        event.attendees
+      )
+      navigate(`/meeting/${meeting.id}`)
+    } catch (err) {
+      console.error('Failed to prepare meeting:', err)
+    }
+  }
+
+  const handleDismissEvent = (event: CalendarEvent) => {
+    dismissEvent(event.id)
   }
 
   return (
@@ -55,17 +75,17 @@ export default function Sidebar() {
         </NavLink>
       </div>
 
-      {calendarConnected && visibleEvents.length > 0 && (
+      {calendarConnected && (
         <div className={styles.calendar}>
-          <h4 className={styles.calendarTitle}>Upcoming</h4>
-          {visibleEvents.slice(0, 5).map((event) => (
-            <CalendarBadge
-              key={event.id}
-              event={event}
-              onRecord={handleRecordFromCalendar}
-              onDismiss={() => dismissEvent(event.id)}
-            />
-          ))}
+          <MiniCalendar
+            calendarConnected={calendarConnected}
+            dismissedEventIds={dismissedEventIds}
+            storeEvents={calendarEvents}
+            onRecordEvent={handleRecordFromCalendar}
+            onPrepareEvent={handlePrepareFromCalendar}
+            onDismissEvent={handleDismissEvent}
+            onClickMeeting={(id) => navigate(`/meeting/${id}`)}
+          />
         </div>
       )}
 

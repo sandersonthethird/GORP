@@ -6,7 +6,11 @@ import {
   isCalendarConnected,
   storeGoogleClientCredentials
 } from '../calendar/google-auth'
-import { getUpcomingEvents, getCurrentMeetingEvent } from '../calendar/google-calendar'
+import {
+  getUpcomingEvents,
+  getEventsInRange,
+  getCurrentMeetingEvent
+} from '../calendar/google-calendar'
 import { startMeetingNotifier, stopMeetingNotifier } from '../calendar/meeting-notifier'
 
 let pollingInterval: ReturnType<typeof setInterval> | null = null
@@ -32,11 +36,18 @@ export function registerCalendarHandlers(): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.CALENDAR_EVENTS, async () => {
-    return getUpcomingEvents(72)
+    return getUpcomingEvents(720)
   })
 
+  ipcMain.handle(
+    IPC_CHANNELS.CALENDAR_EVENTS_RANGE,
+    async (_event, rangeStart: string, rangeEnd: string) => {
+      return getEventsInRange(rangeStart, rangeEnd)
+    }
+  )
+
   ipcMain.handle(IPC_CHANNELS.CALENDAR_SYNC, async () => {
-    return getUpcomingEvents(72)
+    return getUpcomingEvents(720)
   })
 
   ipcMain.handle(IPC_CHANNELS.CALENDAR_REAUTHORIZE, async () => {

@@ -23,16 +23,6 @@
   min-height: 0;
 }
 
-.calendarTitle {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--color-text-tertiary);
-  margin-bottom: 8px;
-  padding: 0 8px;
-}
-
 .bottom {
   display: flex;
   flex-direction: column;

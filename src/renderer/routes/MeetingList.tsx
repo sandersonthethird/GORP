@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMeetings } from '../hooks/useMeetings'
 import { useSearch } from '../hooks/useSearch'
@@ -9,8 +9,61 @@ import MeetingCard from '../components/meetings/MeetingCard'
 import CalendarBadge from '../components/meetings/CalendarBadge'
 import EmptyState from '../components/common/EmptyState'
 import type { CalendarEvent } from '../../shared/types/calendar'
+import type { Meeting } from '../../shared/types/meeting'
 import type { DriveShareResponse } from '../../shared/types/drive'
 import styles from './MeetingList.module.css'
+
+function formatDateHeading(dateStr: string): string {
+  const date = new Date(dateStr)
+  const today = new Date()
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  if (date.toDateString() === today.toDateString()) return 'Today'
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
+
+  return date.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  })
+}
+
+interface DisplayItem {
+  id: string
+  meeting?: Meeting
+  snippet?: string
+}
+
+function groupByDate(items: DisplayItem[]): [string, DisplayItem[]][] {
+  const groups = new Map<string, DisplayItem[]>()
+  for (const item of items) {
+    if (!item.meeting) continue
+    const heading = formatDateHeading(item.meeting.date)
+    const group = groups.get(heading)
+    if (group) {
+      group.push(item)
+    } else {
+      groups.set(heading, [item])
+    }
+  }
+  return Array.from(groups.entries())
+}
+
+function groupCalendarEventsByDate(events: CalendarEvent[]): [string, CalendarEvent[]][] {
+  const groups = new Map<string, CalendarEvent[]>()
+  for (const event of events) {
+    const heading = formatDateHeading(event.startTime)
+    const group = groups.get(heading)
+    if (group) {
+      group.push(event)
+    } else {
+      groups.set(heading, [event])
+    }
+  }
+  return Array.from(groups.entries())
+}
 
 export default function MeetingList() {
   const navigate = useNavigate()
@@ -22,9 +75,16 @@ export default function MeetingList() {
   const dismissedEventIds = useAppStore((s) => s.dismissedEventIds)
   const dismissEvent = useAppStore((s) => s.dismissEvent)
   const startRecording = useRecordingStore((s) => s.startRecording)
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false)
+
+  const UPCOMING_LIMIT = 2
 
   // Filter out dismissed events
   const visibleCalendarEvents = calendarEvents.filter((e) => !dismissedEventIds.has(e.id))
+  const upcomingEvents = showAllUpcoming
+    ? visibleCalendarEvents
+    : visibleCalendarEvents.slice(0, UPCOMING_LIMIT)
+  const hasMoreUpcoming = visibleCalendarEvents.length > UPCOMING_LIMIT
 
   // Refresh calendar events every time the page is navigated to
   useEffect(() => {
@@ -99,19 +159,36 @@ export default function MeetingList() {
   return (
     <div className={styles.container}>
       {showUpcoming && (
-        <div className={styles.section}>
+        <div className={`${styles.section} ${styles.upcoming}`}>
           <h3 className={styles.sectionHeader}>Upcoming</h3>
-          <div className={styles.upcomingList}>
-            {visibleCalendarEvents.map((event) => (
-              <CalendarBadge
-                key={event.id}
-                event={event}
-                onRecord={handleRecordFromCalendar}
-                onPrepare={handlePrepareFromCalendar}
-                onDismiss={handleDismissEvent}
-              />
-            ))}
-          </div>
+          {groupCalendarEventsByDate(upcomingEvents).map(([dateHeading, events]) => (
+            <div key={dateHeading} className={styles.dateGroup}>
+              <div className={styles.dateHeader}>
+                <span>{dateHeading}</span>
+              </div>
+              <div className={styles.list}>
+                {events.map((event) => (
+                  <CalendarBadge
+                    key={event.id}
+                    event={event}
+                    onRecord={handleRecordFromCalendar}
+                    onPrepare={handlePrepareFromCalendar}
+                    onDismiss={handleDismissEvent}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          {hasMoreUpcoming && (
+            <button
+              className={styles.showMoreBtn}
+              onClick={() => setShowAllUpcoming((v) => !v)}
+            >
+              {showAllUpcoming
+                ? 'Show fewer meetings'
+                : `Show more meetings (${visibleCalendarEvents.length - UPCOMING_LIMIT} more)`}
+            </button>
+          )}
         </div>
       )}
 
@@ -124,40 +201,47 @@ export default function MeetingList() {
       )}
 
       {(displayItems.length > 0 || hasSearch) && (
-        <div className={styles.section}>
+        <div className={`${styles.section} ${styles.recent}`}>
           {!hasSearch && showUpcoming && (
             <h3 className={styles.sectionHeader}>Recent Meetings</h3>
           )}
-          <div className={styles.list}>
-            {displayItems.map(
-              ({ id, meeting, snippet }) =>
-                meeting && (
-                  <MeetingCard
-                    key={id}
-                    meeting={meeting}
-                    snippet={snippet}
-                    onClick={() => navigate(`/meeting/${id}`)}
-                    onDelete={() => deleteMeeting(id)}
-                    onCopyLink={async () => {
-                      try {
-                        const result = await window.api.invoke<DriveShareResponse>(
-                          IPC_CHANNELS.DRIVE_GET_SHARE_LINK,
-                          meeting.id
-                        )
-                        if (result.success) {
-                          await navigator.clipboard.writeText(result.url)
-                        } else {
-                          alert(result.message)
-                        }
-                      } catch (err) {
-                        console.error('Failed to get Drive link:', err)
-                        alert('Failed to get shareable link.')
-                      }
-                    }}
-                  />
-                )
-            )}
-          </div>
+          {groupByDate(displayItems).map(([dateHeading, items]) => (
+            <div key={dateHeading} className={styles.dateGroup}>
+              <div className={styles.dateHeader}>
+                <span>{dateHeading}</span>
+              </div>
+              <div className={styles.list}>
+                {items.map(
+                  ({ id, meeting, snippet }) =>
+                    meeting && (
+                      <MeetingCard
+                        key={id}
+                        meeting={meeting}
+                        snippet={snippet}
+                        onClick={() => navigate(`/meeting/${id}`)}
+                        onDelete={() => deleteMeeting(id)}
+                        onCopyLink={async () => {
+                          try {
+                            const result = await window.api.invoke<DriveShareResponse>(
+                              IPC_CHANNELS.DRIVE_GET_SHARE_LINK,
+                              meeting.id
+                            )
+                            if (result.success) {
+                              await navigator.clipboard.writeText(result.url)
+                            } else {
+                              alert(result.message)
+                            }
+                          } catch (err) {
+                            console.error('Failed to get Drive link:', err)
+                            alert('Failed to get shareable link.')
+                          }
+                        }}
+                      />
+                    )
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

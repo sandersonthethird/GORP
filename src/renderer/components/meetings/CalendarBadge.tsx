@@ -12,13 +12,15 @@ function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
-function getTimeUntil(dateStr: string): string {
-  const diff = new Date(dateStr).getTime() - Date.now()
-  if (diff < 0) return 'now'
-  const minutes = Math.floor(diff / 60000)
-  if (minutes < 60) return `in ${minutes}m`
-  const hours = Math.floor(minutes / 60)
-  return `in ${hours}h ${minutes % 60}m`
+function formatDuration(startTime: string, endTime: string): string {
+  const diffMs = new Date(endTime).getTime() - new Date(startTime).getTime()
+  const minutes = Math.max(0, Math.floor(diffMs / 60000))
+  if (minutes >= 60) {
+    const h = Math.floor(minutes / 60)
+    const m = minutes % 60
+    return m > 0 ? `${h}h ${m}m` : `${h}h`
+  }
+  return `${minutes}m`
 }
 
 export default function CalendarBadge({ event, onRecord, onPrepare, onDismiss }: CalendarBadgeProps) {
@@ -26,11 +28,25 @@ export default function CalendarBadge({ event, onRecord, onPrepare, onDismiss }:
     new Date(event.startTime).getTime() <= Date.now() &&
     new Date(event.endTime).getTime() >= Date.now()
 
+  const attendeeNames = event.attendees.join(', ')
+
   return (
     <div
-      className={`${styles.badge} ${isNow ? styles.active : ''}`}
+      className={`${styles.card} ${isNow ? styles.active : ''}`}
       onClick={() => onPrepare(event)}
     >
+      <div className={styles.row}>
+        <h3 className={styles.title}>{event.title}</h3>
+        <span className={styles.time}>{formatTime(event.startTime)}</span>
+      </div>
+      <div className={styles.row}>
+        {attendeeNames ? (
+          <span className={styles.speakers}>{attendeeNames}</span>
+        ) : (
+          <span />
+        )}
+        <span className={styles.duration}>{formatDuration(event.startTime, event.endTime)}</span>
+      </div>
       <button
         className={styles.dismissBtn}
         onClick={(e) => {
@@ -40,27 +56,6 @@ export default function CalendarBadge({ event, onRecord, onPrepare, onDismiss }:
         title="Dismiss"
       >
         ×
-      </button>
-      <div className={styles.header}>
-        <span className={styles.time}>{formatTime(event.startTime)}</span>
-        <span className={styles.until}>{getTimeUntil(event.startTime)}</span>
-      </div>
-      <div className={styles.title}>{event.title}</div>
-      {event.platform && <span className={styles.platform}>{event.platform}</span>}
-      {event.attendees.length > 0 && (
-        <div className={styles.attendees}>
-          {event.attendees.slice(0, 3).join(', ')}
-          {event.attendees.length > 3 && ` +${event.attendees.length - 3}`}
-        </div>
-      )}
-      <button
-        className={styles.recordBtn}
-        onClick={(e) => {
-          e.stopPropagation()
-          onRecord(event)
-        }}
-      >
-        Record
       </button>
     </div>
   )

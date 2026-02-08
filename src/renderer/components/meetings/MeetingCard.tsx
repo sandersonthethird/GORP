@@ -21,12 +21,9 @@ function formatDuration(seconds: number | null): string {
   return `${m}m ${s}s`
 }
 
-function formatDate(dateStr: string): string {
+function formatTime(dateStr: string): string {
   const date = new Date(dateStr)
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
+  return date.toLocaleTimeString(undefined, {
     hour: 'numeric',
     minute: '2-digit'
   })
@@ -47,55 +44,66 @@ export default function MeetingCard({ meeting, snippet, onClick, onDelete, onCop
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [menuOpen])
 
+  const attendees = meeting.attendees && meeting.attendees.length > 0
+    ? meeting.attendees
+    : Object.values(meeting.speakerMap)
+  const speakerNames = attendees.join(', ')
+
   return (
     <div className={styles.card} onClick={onClick}>
-      <div className={styles.header}>
+      <div className={styles.row}>
         <h3 className={styles.title}>{meeting.title}</h3>
-        <div className={styles.menuWrapper} ref={menuRef}>
-          <button
-            className={styles.menuBtn}
-            onClick={(e) => {
-              e.stopPropagation()
-              setMenuOpen((prev) => !prev)
-            }}
-          >
-            ⋯
-          </button>
-          {menuOpen && (
-            <div className={styles.menu}>
-              <button
-                className={styles.menuItem}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onCopyLink()
-                  setMenuOpen(false)
-                }}
-              >
-                Copy link
-              </button>
-              <button
-                className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDelete()
-                  setMenuOpen(false)
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          )}
-        </div>
+        <span className={styles.time}>{formatTime(meeting.date)}</span>
       </div>
-      <div className={styles.meta}>
-        <span>{formatDate(meeting.date)}</span>
-        <span>{formatDuration(meeting.durationSeconds)}</span>
-        {meeting.meetingPlatform && <span className={styles.platform}>{meeting.meetingPlatform}</span>}
-        <span>{meeting.speakerCount} speaker{meeting.speakerCount !== 1 ? 's' : ''}</span>
+      <div className={styles.row}>
+        {speakerNames ? (
+          <span className={styles.speakers}>{speakerNames}</span>
+        ) : (
+          <span />
+        )}
+        <span className={styles.duration}>{formatDuration(meeting.durationSeconds)}</span>
       </div>
       {snippet && (
-        <p className={styles.snippet} dangerouslySetInnerHTML={{ __html: snippet }} />
+        <div className={styles.row}>
+          <p className={styles.snippet} dangerouslySetInnerHTML={{ __html: snippet }} />
+          <span />
+        </div>
       )}
+      <div className={styles.menuWrapper} ref={menuRef}>
+        <button
+          className={styles.menuBtn}
+          onClick={(e) => {
+            e.stopPropagation()
+            setMenuOpen((prev) => !prev)
+          }}
+        >
+          ⋯
+        </button>
+        {menuOpen && (
+          <div className={styles.menu}>
+            <button
+              className={styles.menuItem}
+              onClick={(e) => {
+                e.stopPropagation()
+                onCopyLink()
+                setMenuOpen(false)
+              }}
+            >
+              Copy link
+            </button>
+            <button
+              className={`${styles.menuItem} ${styles.menuItemDanger}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+                setMenuOpen(false)
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
