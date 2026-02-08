@@ -1,20 +1,20 @@
 :root {
-  --color-bg: #FAF9F6;
-  --color-bg-secondary: #F0EBE3;
-  --color-bg-tertiary: #E5DFD5;
+  --color-bg: #E2DAC8;
+  --color-bg-secondary: #D8CFBC;
+  --color-bg-tertiary: #CEC4B0;
   --color-text: #2D2B28;
   --color-text-secondary: #6B665F;
   --color-text-tertiary: #A8A29A;
-  --color-border: #D5CFC6;
+  --color-border: #C5BBA8;
   --color-primary: #DA7756;
   --color-primary-hover: #C4694B;
   --color-danger: #ff3b30;
   --color-success: #34c759;
   --color-warning: #ff9500;
   --color-recording: #ff3b30;
-  --color-sidebar-bg: #F0EBE3;
-  --color-card-bg: #ffffff;
-  --color-card-hover: #F0EBE3;
+  --color-sidebar-bg: #D8CFBC;
+  --color-card-bg: #EDE7DB;
+  --color-card-hover: #D8CFBC;
 
   --radius-sm: 6px;
   --radius-md: 10px;

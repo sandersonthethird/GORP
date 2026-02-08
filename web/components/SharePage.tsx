@@ -25,7 +25,7 @@ export default function SharePage({
   notes,
 }: SharePageProps) {
   return (
-    <div className="flex h-screen bg-white dark:bg-gray-950">
+    <div className="flex h-screen" style={{ background: 'var(--background)' }}>
       <div className="flex-1 overflow-y-auto border-r border-gray-200 dark:border-gray-800 p-8">
         <SummaryPanel
           title={title}
