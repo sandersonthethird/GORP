@@ -69,6 +69,7 @@ export default function MeetingDetail() {
   const [findOpen, setFindOpen] = useState(false)
   const [shareMenuOpen, setShareMenuOpen] = useState(false)
   const shareRef = useRef<HTMLDivElement>(null)
+  const [showNotes, setShowNotes] = useState(true)
 
   // Close share menu on click outside
   useEffect(() => {
@@ -93,6 +94,7 @@ export default function MeetingDetail() {
     setLocalSpeakerMap(result.meeting.speakerMap)
     setNotesDraft(result.meeting.notes || '')
     setSummaryDraft(result.summary || '')
+    if (result.summary) setShowNotes(false)
   }, [id, navigate])
 
   useEffect(() => {
@@ -277,6 +279,7 @@ export default function MeetingDetail() {
       )
       setSummaryDraft(summary)
       setStreamedSummary('')
+      setShowNotes(false)
     } catch (err) {
       console.error('Summary generation failed:', err)
     } finally {
@@ -616,13 +619,23 @@ export default function MeetingDetail() {
       <div className={styles.content}>
         {activeTab === 'notes' && (
           <div className={styles.notesTab}>
-            <textarea
-              className={styles.notesTextarea}
-              value={notesDraft}
-              onChange={handleNotesChange}
-              placeholder="Add your meeting notes here..."
-              rows={6}
-            />
+            {hasSummary ? (
+              <button
+                className={styles.notesToggle}
+                onClick={() => setShowNotes((v) => !v)}
+              >
+                {showNotes ? 'Hide your notes' : 'Show your notes'}
+              </button>
+            ) : null}
+            {(showNotes || !hasSummary) && (
+              <textarea
+                className={styles.notesTextarea}
+                value={notesDraft}
+                onChange={handleNotesChange}
+                placeholder="Add your meeting notes here..."
+                rows={6}
+              />
+            )}
 
             {hasTranscript && (
               <div className={styles.enhanceBar}>

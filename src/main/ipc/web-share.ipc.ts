@@ -5,8 +5,8 @@ import * as meetingRepo from '../database/repositories/meeting.repo'
 import { readTranscript, readSummary } from '../storage/file-manager'
 import type { WebShareResponse } from '../../shared/types/web-share'
 
-const WEB_SHARE_API_URL = process.env.GORP_SHARE_URL || 'https://gorp-share.vercel.app'
-const WEB_SHARE_API_SECRET = process.env.GORP_SHARE_SECRET || ''
+const WEB_SHARE_API_URL = 'https://gorp-nu.vercel.app'
+const WEB_SHARE_API_SECRET = import.meta.env.MAIN_VITE_SHARE_SECRET || ''
 
 export function registerWebShareHandlers(): void {
   ipcMain.handle(

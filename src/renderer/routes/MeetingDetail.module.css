@@ -1,5 +1,4 @@
 .container {
-  max-width: 800px;
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -369,6 +368,22 @@
   gap: 16px;
   flex: 1;
   min-height: 0;
+}
+
+.notesToggle {
+  padding: 6px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s;
+}
+
+.notesToggle:hover {
+  color: var(--color-primary);
 }
 
 .notesTextarea {
