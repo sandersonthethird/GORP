@@ -79,7 +79,31 @@ npm install
 npm run dev
 ```
 
-Once the app launches, go to **Settings** to enter your API keys (Deepgram, Claude) and connect your Google Calendar. API keys are encrypted and stored locally using Electron's safe storage.
+Once the app launches, open **Settings** to configure your API keys (see below).
+
+## API Key Setup
+
+GORP requires your own API keys — no keys are included with the app. All keys are encrypted and stored locally on your machine using Electron's safe storage.
+
+### 1. Deepgram (required for transcription)
+
+1. Sign up for a free account at [console.deepgram.com](https://console.deepgram.com/signup)
+2. Go to **API Keys** in the Deepgram dashboard and create a new key
+3. In GORP, open **Settings > Transcription** and paste your key
+
+Deepgram's free tier includes $200 in credit, which covers many hours of transcription.
+
+### 2. Anthropic (required for AI summaries and chat)
+
+1. Sign up at [console.anthropic.com](https://console.anthropic.com/)
+2. Go to **Settings > API Keys** and create a new key
+3. In GORP, open **Settings > Summarization**, select **Claude**, and paste your key
+
+> **Free alternative:** If you'd prefer not to use a paid API, select **Ollama** as your LLM provider in Settings. [Install Ollama](https://ollama.com/) and run a model locally at no cost.
+
+### 3. Google Calendar & Drive (optional)
+
+To auto-detect meetings and upload files to Drive, connect your Google account in **Settings > Google Calendar**. The app will walk you through creating OAuth credentials.
 
 ## Scripts
 

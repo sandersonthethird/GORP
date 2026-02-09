@@ -110,8 +110,43 @@ export default function Settings() {
     }
   }, [])
 
+  const needsDeepgram = !settings.deepgramApiKey
+  const needsClaude = settings.llmProvider === 'claude' && !settings.claudeApiKey
+
   return (
     <div className={styles.container}>
+      {(needsDeepgram || needsClaude) && (
+        <div className={styles.setupBanner}>
+          <h3>Welcome to GORP</h3>
+          <p>To get started, you'll need to provide your own API keys. They are stored locally on your machine and encrypted.</p>
+          <ol>
+            {needsDeepgram && (
+              <li>
+                <strong>Deepgram</strong> (transcription) — Create a free account at{' '}
+                <a href="https://console.deepgram.com/signup" target="_blank" rel="noreferrer">
+                  console.deepgram.com
+                </a>
+                , go to API Keys, and create a new key. Paste it into the Transcription section below.
+              </li>
+            )}
+            {needsClaude && (
+              <li>
+                <strong>Anthropic</strong> (AI summaries &amp; chat) — Sign up at{' '}
+                <a href="https://console.anthropic.com/" target="_blank" rel="noreferrer">
+                  console.anthropic.com
+                </a>
+                , go to Settings &gt; API Keys, and create a new key. Paste it into the Summarization section below.
+              </li>
+            )}
+          </ol>
+          {needsClaude && (
+            <p style={{ marginTop: 8, marginBottom: 0 }}>
+              Prefer a free option? Select <strong>Ollama</strong> as your LLM provider below and run models locally.
+            </p>
+          )}
+        </div>
+      )}
+
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>Transcription</h3>
         <div className={styles.field}>
