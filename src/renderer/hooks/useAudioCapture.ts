@@ -92,6 +92,7 @@ export function useAudioCapture() {
             'Try toggling the Electron permission off and on, then restart the app.'
           )
           setHasSystemAudio(false)
+          window.api.send('recording:system-audio-status', false)
         } else {
           systemStreamRef.current = displayStream
           systemSource = context.createMediaStreamSource(displayStream)
@@ -100,6 +101,7 @@ export function useAudioCapture() {
           systemSource.connect(systemGain)
           systemGain.connect(merger, 0, 1)
           setHasSystemAudio(true)
+          window.api.send('recording:system-audio-status', true)
           console.log(
             '[AudioCapture] System audio loopback active',
             `(context ${context.sampleRate} Hz, track ${track.getSettings().sampleRate ?? 'unknown'} Hz)`
@@ -108,10 +110,12 @@ export function useAudioCapture() {
       } else {
         console.warn('[AudioCapture] getDisplayMedia returned no audio tracks')
         setHasSystemAudio(false)
+        window.api.send('recording:system-audio-status', false)
       }
     } catch (err) {
       console.warn('[AudioCapture] System audio unavailable, using mic only:', err)
       setHasSystemAudio(false)
+      window.api.send('recording:system-audio-status', false)
       // Make sure we disable the handler even on error
       try {
         await window.api.invoke('disable-loopback-audio')
@@ -126,20 +130,21 @@ export function useAudioCapture() {
     const targetRate = 16000
     const ratio = context.sampleRate / targetRate
 
-    // Mix down to mono and extract PCM
+    // Send 2-channel interleaved PCM (ch0=mic, ch1=system) for multichannel diarization
     const processor = context.createScriptProcessor(4096, 2, 1)
     processorRef.current = processor
 
     processor.onaudioprocess = (event) => {
       if (pausedRef.current) return
-      const ch0 = event.inputBuffer.getChannelData(0)
+      const ch0 = event.inputBuffer.getChannelData(0) // mic
       const ch1 = event.inputBuffer.numberOfChannels > 1
-        ? event.inputBuffer.getChannelData(1)
+        ? event.inputBuffer.getChannelData(1) // system audio
         : null
 
       // Downsample from context rate to 16 kHz via linear interpolation
       const outputLen = Math.floor(ch0.length / ratio)
-      const int16Data = new Int16Array(outputLen)
+      // 2-channel interleaved: [mic0, sys0, mic1, sys1, ...]
+      const int16Data = new Int16Array(outputLen * 2)
 
       for (let i = 0; i < outputLen; i++) {
         const srcIdx = i * ratio
@@ -147,18 +152,19 @@ export function useAudioCapture() {
         const frac = srcIdx - srcFloor
         const next = Math.min(srcFloor + 1, ch0.length - 1)
 
-        // Interpolate each channel, then mix to mono
-        let sample: number
-        if (ch1) {
-          const a = (ch0[srcFloor] + ch1[srcFloor]) / 2
-          const b = (ch0[next] + ch1[next]) / 2
-          sample = a + (b - a) * frac
-        } else {
-          sample = ch0[srcFloor] + (ch0[next] - ch0[srcFloor]) * frac
-        }
+        // Channel 0 (mic) - interpolated
+        const mic = ch0[srcFloor] + (ch0[next] - ch0[srcFloor]) * frac
+        const micClamped = Math.max(-1, Math.min(1, mic))
+        int16Data[i * 2] = micClamped < 0 ? micClamped * 0x8000 : micClamped * 0x7fff
 
-        const clamped = Math.max(-1, Math.min(1, sample))
-        int16Data[i] = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff
+        // Channel 1 (system audio) - interpolated, or silence if unavailable
+        if (ch1) {
+          const sys = ch1[srcFloor] + (ch1[next] - ch1[srcFloor]) * frac
+          const sysClamped = Math.max(-1, Math.min(1, sys))
+          int16Data[i * 2 + 1] = sysClamped < 0 ? sysClamped * 0x8000 : sysClamped * 0x7fff
+        } else {
+          int16Data[i * 2 + 1] = 0
+        }
       }
 
       window.api.send('recording:audio-data', int16Data.buffer)

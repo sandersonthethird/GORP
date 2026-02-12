@@ -33,7 +33,8 @@ export class OllamaProvider implements LLMProvider {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        stream: true
+        stream: true,
+        options: { num_predict: 2048 }
       })
 
       let full = ''
@@ -49,7 +50,8 @@ export class OllamaProvider implements LLMProvider {
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
-      ]
+      ],
+      options: { num_predict: 2048 }
     })
 
     return response.message.content

@@ -37,6 +37,7 @@
   color: var(--color-text-secondary);
   white-space: nowrap;
   flex-shrink: 0;
+  transition: opacity 0.15s;
 }
 
 .speakers {
@@ -53,6 +54,7 @@
   color: var(--color-text-tertiary);
   white-space: nowrap;
   flex-shrink: 0;
+  transition: opacity 0.15s;
 }
 
 .snippet {
@@ -82,6 +84,11 @@
   color: var(--color-text-tertiary);
   opacity: 0;
   transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.card:hover .time,
+.card:hover .duration {
+  opacity: 0;
 }
 
 .card:hover .menuBtn {

@@ -12,6 +12,7 @@ interface SettingsState {
   ollamaHost: string
   ollamaModel: string
   showLiveTranscript: boolean
+  defaultMaxSpeakers: string
 }
 
 export default function Settings() {
@@ -21,7 +22,8 @@ export default function Settings() {
     claudeApiKey: '',
     ollamaHost: 'http://127.0.0.1:11434',
     ollamaModel: 'llama3.1',
-    showLiveTranscript: true
+    showLiveTranscript: true,
+    defaultMaxSpeakers: ''
   })
   const [saved, setSaved] = useState(false)
   const [storagePath, setStoragePath] = useState('')
@@ -50,7 +52,8 @@ export default function Settings() {
         claudeApiKey: all.claudeApiKey || '',
         ollamaHost: all.ollamaHost || 'http://127.0.0.1:11434',
         ollamaModel: all.ollamaModel || 'llama3.1',
-        showLiveTranscript: all.showLiveTranscript !== 'false'
+        showLiveTranscript: all.showLiveTranscript !== 'false',
+        defaultMaxSpeakers: all.defaultMaxSpeakers || ''
       })
       setStoragePath(currentPath)
     }
@@ -176,6 +179,22 @@ export default function Settings() {
             />
             Show live transcript during recording
           </label>
+        </div>
+        <div className={styles.field}>
+          <label className={styles.label}>Default Speaker Count</label>
+          <input
+            type="number"
+            className={styles.input}
+            value={settings.defaultMaxSpeakers}
+            onChange={(e) => setSettings({ ...settings, defaultMaxSpeakers: e.target.value })}
+            placeholder="Auto-detect"
+            min="1"
+            max="20"
+            style={{ width: 120 }}
+          />
+          <p className={styles.hint}>
+            Limits how many speakers Deepgram identifies. When recording from a calendar event, this is set automatically from the attendee list. Leave blank for auto-detection.
+          </p>
         </div>
       </section>
 

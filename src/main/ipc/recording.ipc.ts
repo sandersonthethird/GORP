@@ -5,6 +5,7 @@ import { DeepgramStreamingClient } from '../deepgram/client'
 import { TranscriptAssembler } from '../deepgram/transcript-assembler'
 import * as meetingRepo from '../database/repositories/meeting.repo'
 import { getCredential } from '../security/credentials'
+import { getSetting } from '../database/repositories/settings.repo'
 import { writeTranscript } from '../storage/file-manager'
 import { indexMeeting } from '../database/repositories/search.repo'
 import { updateTrayMenu } from '../tray'
@@ -51,10 +52,10 @@ export function registerRecordingHandlers(): void {
       throw new Error('Deepgram API key not configured. Go to Settings to add it.')
     }
 
-    // Initialize components
-    transcriptAssembler = new TranscriptAssembler()
+    // Initialize components (Deepgram client created below after speaker count is known)
+    transcriptAssembler = new TranscriptAssembler(true)
     audioCapture = new AudioCapture()
-    deepgramClient = new DeepgramStreamingClient({ apiKey: deepgramKey })
+    let maxSpeakers: number | undefined
 
     // Append to existing meeting
     if (appendToMeetingId) {
@@ -72,6 +73,7 @@ export function registerRecordingHandlers(): void {
         if (speakers.length > 0) {
           calendarSelfName = speakers[0] || null
           calendarAttendees = speakers.slice(1)
+          maxSpeakers = speakers.length
         }
       }
 
@@ -100,6 +102,15 @@ export function registerRecordingHandlers(): void {
         } catch {
           // Calendar lookup failed, use default title
         }
+      }
+
+      // Set max speakers from calendar attendees (self + attendees)
+      if (calendarAttendees.length > 0) {
+        maxSpeakers = 1 + calendarAttendees.length
+      } else {
+        // Fall back to user's default setting for ad-hoc recordings
+        const defaultMax = getSetting('defaultMaxSpeakers')
+        if (defaultMax) maxSpeakers = parseInt(defaultMax, 10) || undefined
       }
 
       if (!meetingTitle) {
@@ -142,6 +153,9 @@ export function registerRecordingHandlers(): void {
       currentMeetingId = meeting.id
       recordingStartTime = Date.now()
     }
+
+    // Create Deepgram client with speaker count constraint and multichannel audio
+    deepgramClient = new DeepgramStreamingClient({ apiKey: deepgramKey, maxSpeakers, channels: 2 })
 
     // Wire audio -> Deepgram
     audioCapture.on('audio-chunk', (chunk: Buffer) => {
@@ -225,6 +239,14 @@ export function registerRecordingHandlers(): void {
     return { meetingId: currentMeetingId }
   })
 
+  // Receive system audio capture status from renderer
+  ipcMain.on('recording:system-audio-status', (_event, hasSystemAudio: boolean) => {
+    console.log('[Recording] System audio status from renderer:', hasSystemAudio)
+    if (transcriptAssembler && !hasSystemAudio) {
+      transcriptAssembler.setMultichannel(false)
+    }
+  })
+
   // Receive audio data from renderer (for microphone/system capture done in renderer)
   ipcMain.on('recording:audio-data', (_event, data: ArrayBuffer) => {
     console.log('[Recording] Audio data from renderer:', data.byteLength, 'bytes')
@@ -286,6 +308,16 @@ export function registerRecordingHandlers(): void {
 
     if (transcriptAssembler) {
       transcriptAssembler.finalize()
+      transcriptAssembler.correctSpeakerBoundaries()
+
+      // Merge phantom speakers created by Deepgram diarization.
+      // When we know the expected participant count from the calendar,
+      // short segments from extra speakers get folded into the prior speaker.
+      if (calendarAttendees.length > 0) {
+        const expectedSpeakers = 1 + calendarAttendees.length
+        transcriptAssembler.consolidateSpeakers(expectedSpeakers)
+      }
+
       const speakerCount = transcriptAssembler.getSpeakerCount()
 
       // Build speaker labels from calendar attendees when available.

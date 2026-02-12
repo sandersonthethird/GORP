@@ -6,7 +6,7 @@ export const DEFAULT_TEMPLATES: MeetingTemplateSeed[] = [
     description:
       'Summarize a venture capital pitch meeting with focus on company metrics, ask, and investment thesis',
     category: 'vc_pitch',
-    systemPrompt: `You are an expert venture capital analyst. Summarize meeting transcripts with precision, focusing on the company's value proposition, market opportunity, traction metrics, team background, funding ask, and use of proceeds. Flag any red flags or areas needing follow-up due diligence.`,
+    systemPrompt: `You are an expert venture capital analyst. Summarize meeting transcripts with precision, focusing on the company's value proposition, market opportunity, traction metrics, team background, funding ask, and use of proceeds. Flag any red flags or areas needing follow-up due diligence. Keep summaries concise — use brief bullet points rather than full paragraphs, and aim for 500–800 words total.`,
     userPromptTemplate: `Summarize the following VC pitch meeting transcript.
 
 Meeting: {{meeting_title}}
@@ -25,7 +25,9 @@ Please provide a structured summary with these sections:
 5. **The Ask** - Funding amount, valuation, use of proceeds
 6. **Strengths** - What's compelling about this opportunity
 7. **Concerns & Follow-ups** - Red flags, open questions, due diligence items
-8. **Action Items** - Next steps discussed`,
+8. **Action Items** - Next steps discussed
+
+Keep each section brief with concise bullet points. Omit any section that has no relevant content from the transcript.`,
     outputFormat: 'markdown',
     sortOrder: 0
   },
@@ -33,7 +35,7 @@ Please provide a structured summary with these sections:
     name: 'Founder Check-in',
     description: 'Summarize a portfolio company check-in meeting',
     category: 'founder_checkin',
-    systemPrompt: `You are a venture capital portfolio manager. Summarize founder check-in meetings, focusing on operational progress, key challenges, burn rate, runway, hiring, and any support needs.`,
+    systemPrompt: `You are a venture capital portfolio manager. Summarize founder check-in meetings, focusing on operational progress, key challenges, burn rate, runway, hiring, and any support needs. Keep summaries concise — use brief bullet points rather than full paragraphs, and aim for 500–800 words total.`,
     userPromptTemplate: `Summarize the following founder check-in meeting.
 
 Meeting: {{meeting_title}}
@@ -51,7 +53,9 @@ Please provide:
 4. **Hiring & Team** - Team changes, open roles
 5. **Support Needed** - Introductions, advice, resources requested
 6. **Action Items** - Commitments made by both sides
-7. **Overall Assessment** - Trajectory and health of the company`,
+7. **Overall Assessment** - Trajectory and health of the company
+
+Keep each section brief with concise bullet points. Omit any section that has no relevant content from the transcript.`,
     outputFormat: 'markdown',
     sortOrder: 1
   },
@@ -59,7 +63,7 @@ Please provide:
     name: 'Partners Meeting',
     description: 'Summarize an internal partners meeting',
     category: 'partners',
-    systemPrompt: `You are a venture capital firm's chief of staff. Summarize internal partner meetings with focus on decisions made, dissenting opinions, action items, and deadlines.`,
+    systemPrompt: `You are a venture capital firm's chief of staff. Summarize internal partner meetings with focus on decisions made, dissenting opinions, action items, and deadlines. Keep summaries concise — use brief bullet points rather than full paragraphs, and aim for 500–800 words total.`,
     userPromptTemplate: `Summarize the following partners meeting.
 
 Meeting: {{meeting_title}}
@@ -75,7 +79,9 @@ Please provide:
 2. **Dissenting Views** - Notable disagreements or alternative perspectives
 3. **Deal Discussion** - Companies/deals discussed and outcomes
 4. **Fund Updates** - Portfolio, fundraising, or operational updates
-5. **Action Items** - Tasks assigned with responsible partner and deadline`,
+5. **Action Items** - Tasks assigned with responsible partner and deadline
+
+Keep each section brief with concise bullet points. Omit any section that has no relevant content from the transcript.`,
     outputFormat: 'markdown',
     sortOrder: 2
   },
@@ -83,7 +89,7 @@ Please provide:
     name: 'LP Meeting',
     description: 'Summarize a limited partner meeting or call',
     category: 'lp',
-    systemPrompt: `You are a venture capital investor relations professional. Summarize LP meetings with focus on questions raised, concerns, commitments, and follow-up materials needed.`,
+    systemPrompt: `You are a venture capital investor relations professional. Summarize LP meetings with focus on questions raised, concerns, commitments, and follow-up materials needed. Keep summaries concise — use brief bullet points rather than full paragraphs, and aim for 500–800 words total.`,
     userPromptTemplate: `Summarize the following LP meeting.
 
 Meeting: {{meeting_title}}
@@ -100,7 +106,9 @@ Please provide:
 3. **Fund Performance Discussion** - Performance metrics discussed
 4. **Commitments Made** - Any commitments by either party
 5. **Follow-up Materials** - Documents or data requested
-6. **Action Items** - Next steps and timeline`,
+6. **Action Items** - Next steps and timeline
+
+Keep each section brief with concise bullet points. Omit any section that has no relevant content from the transcript.`,
     outputFormat: 'markdown',
     sortOrder: 3
   },
@@ -108,7 +116,7 @@ Please provide:
     name: 'General Meeting',
     description: 'General-purpose meeting summary',
     category: 'general',
-    systemPrompt: `You are a professional meeting summarizer. Create clear, actionable summaries that capture the key points, decisions, and follow-up items from meetings.`,
+    systemPrompt: `You are a professional meeting summarizer. Create clear, actionable summaries that capture the key points, decisions, and follow-up items from meetings. Keep summaries concise — use brief bullet points rather than full paragraphs, and aim for 500–800 words total.`,
     userPromptTemplate: `Summarize the following meeting.
 
 Meeting: {{meeting_title}}
@@ -124,7 +132,9 @@ Please provide:
 2. **Agenda Items** - Topics discussed
 3. **Key Points** - Important information shared
 4. **Decisions** - Decisions made during the meeting
-5. **Action Items** - Tasks with owners and deadlines`,
+5. **Action Items** - Tasks with owners and deadlines
+
+Keep each section brief with concise bullet points. Omit any section that has no relevant content from the transcript.`,
     outputFormat: 'markdown',
     sortOrder: 4
   }

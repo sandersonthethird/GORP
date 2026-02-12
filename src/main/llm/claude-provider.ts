@@ -30,7 +30,7 @@ export class ClaudeProvider implements LLMProvider {
     if (onProgress) {
       const stream = this.client.messages.stream({
         model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 4096,
+        max_tokens: 2048,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }]
       })
@@ -44,7 +44,7 @@ export class ClaudeProvider implements LLMProvider {
 
     const message = await this.client.messages.create({
       model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 4096,
+      max_tokens: 2048,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }]
     })

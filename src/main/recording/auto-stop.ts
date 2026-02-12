@@ -4,6 +4,7 @@ const DEFAULT_SILENCE_THRESHOLD_MS = 10 * 60 * 1000 // 10 minutes of silence
 const DEFAULT_MIN_RECORDING_MS = 5 * 60 * 1000 // 5 minutes minimum recording
 const CALENDAR_GRACE_MS = 5 * 60 * 1000 // 5 minutes after scheduled end
 const PROCESS_POLL_INTERVAL_MS = 10 * 1000 // 10 seconds
+const ACTIVE_SPEECH_THRESHOLD_MS = 60 * 1000 // Speech within last 60s = still active
 const SILENCE_CHECK_INTERVAL_MS = 30 * 1000 // 30 seconds
 
 interface AutoStopOptions {
@@ -89,15 +90,27 @@ export class RecordingAutoStop {
 
     const msUntilEnd = endTime + CALENDAR_GRACE_MS - Date.now()
     if (msUntilEnd <= 0) {
-      // Calendar event already ended (past grace period) — trigger immediately
-      this.triggerStop()
+      this.checkCalendarStop()
       return
     }
 
     this.calendarTimer = setTimeout(() => {
-      console.log('[AutoStop] Calendar event end time + grace period reached')
-      this.triggerStop()
+      this.checkCalendarStop()
     }, msUntilEnd)
+  }
+
+  private checkCalendarStop(): void {
+    const sinceSpeech = Date.now() - this.lastSpeechTime
+    if (sinceSpeech < ACTIVE_SPEECH_THRESHOLD_MS) {
+      // Still talking — check again in 1 minute
+      console.log('[AutoStop] Calendar end time reached but speech still active, extending')
+      this.calendarTimer = setTimeout(() => {
+        this.checkCalendarStop()
+      }, 60 * 1000)
+      return
+    }
+    console.log('[AutoStop] Calendar event end time + grace period reached, no recent speech')
+    this.triggerStop()
   }
 
   private startProcessPoller(): void {

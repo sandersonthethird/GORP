@@ -50,9 +50,11 @@ export default function MeetingDetail() {
   const speakerInputRef = useRef<HTMLInputElement>(null)
   const [notesDraft, setNotesDraft] = useState('')
   const notesSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const notesDraftRef = useRef('')
   const [summaryDraft, setSummaryDraft] = useState('')
   const [editingSummary, setEditingSummary] = useState(false)
   const summarySaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const summaryDraftRef = useRef('')
   const summaryTextareaRef = useRef<HTMLTextAreaElement>(null)
   const startRecording = useRecordingStore((s) => s.startRecording)
   const stopRecording = useRecordingStore((s) => s.stopRecording)
@@ -96,7 +98,9 @@ export default function MeetingDetail() {
     setData(result)
     setLocalSpeakerMap(result.meeting.speakerMap)
     setNotesDraft(result.meeting.notes || '')
+    notesDraftRef.current = result.meeting.notes || ''
     setSummaryDraft(result.summary || '')
+    summaryDraftRef.current = result.summary || ''
     if (result.summary) setShowNotes(false)
   }, [id, navigate])
 
@@ -133,8 +137,12 @@ export default function MeetingDetail() {
   const handleNotesChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const text = e.target.value
     setNotesDraft(text)
+    notesDraftRef.current = text
     if (notesSaveRef.current) clearTimeout(notesSaveRef.current)
-    notesSaveRef.current = setTimeout(() => saveNotes(text), 500)
+    notesSaveRef.current = setTimeout(() => {
+      saveNotes(text)
+      notesSaveRef.current = null
+    }, 500)
   }, [saveNotes])
 
   // Debounced summary auto-save
@@ -150,17 +158,27 @@ export default function MeetingDetail() {
   const handleSummaryChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const text = e.target.value
     setSummaryDraft(text)
+    summaryDraftRef.current = text
     if (summarySaveRef.current) clearTimeout(summarySaveRef.current)
-    summarySaveRef.current = setTimeout(() => saveSummary(text), 500)
+    summarySaveRef.current = setTimeout(() => {
+      saveSummary(text)
+      summarySaveRef.current = null
+    }, 500)
   }, [saveSummary])
 
-  // Save notes/summary on unmount
+  // Flush any pending notes/summary saves on unmount
   useEffect(() => {
     return () => {
-      if (notesSaveRef.current) clearTimeout(notesSaveRef.current)
-      if (summarySaveRef.current) clearTimeout(summarySaveRef.current)
+      if (notesSaveRef.current) {
+        clearTimeout(notesSaveRef.current)
+        window.api.invoke(IPC_CHANNELS.MEETING_SAVE_NOTES, id, notesDraftRef.current)
+      }
+      if (summarySaveRef.current) {
+        clearTimeout(summarySaveRef.current)
+        window.api.invoke(IPC_CHANNELS.MEETING_SAVE_SUMMARY, id, summaryDraftRef.current)
+      }
     }
-  }, [])
+  }, [id])
 
   const handleStartRecording = useCallback(async () => {
     if (!data || isRecording) return

@@ -14,6 +14,7 @@ export const IPC_CHANNELS = {
   RECORDING_TRANSCRIPT_UPDATE: 'recording:transcript-update',
   RECORDING_ERROR: 'recording:error',
   RECORDING_AUTO_STOP: 'recording:auto-stop',
+  RECORDING_SYSTEM_AUDIO_STATUS: 'recording:system-audio-status',
 
   // Calendar
   CALENDAR_CONNECT: 'calendar:connect',

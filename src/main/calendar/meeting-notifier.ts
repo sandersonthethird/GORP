@@ -1,7 +1,9 @@
-import { app, dialog, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, Notification } from 'electron'
 import { getUpcomingEvents } from './google-calendar'
 import { isCalendarConnected } from './google-auth'
+import { MEETING_APPS } from '../../shared/constants/meeting-apps'
 import type { CalendarEvent } from '../../shared/types/calendar'
+import type { MeetingPlatform } from '../../shared/constants/meeting-apps'
 
 const POLL_INTERVAL_MS = 30 * 1000 // Check every 30 seconds
 const NOTIFY_BEFORE_MS = 1 * 60 * 1000 // Notify 1 minute before
@@ -24,35 +26,64 @@ function focusAndRecord(event: CalendarEvent): void {
   }
 }
 
+function getPlatformDisplayName(platform: MeetingPlatform | null): string | null {
+  if (!platform || platform === 'other') return null
+  return MEETING_APPS[platform]?.name ?? null
+}
+
+function formatTime(isoString: string): string {
+  return new Date(isoString).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+function formatNotificationBody(event: CalendarEvent): string {
+  const parts: string[] = [`Starting at ${formatTime(event.startTime)}`]
+  const platformName = getPlatformDisplayName(event.platform)
+  if (platformName) {
+    parts.push(`via ${platformName}`)
+  }
+  if (event.attendees.length > 0) {
+    const count = event.attendees.length
+    parts.push(`${count} attendee${count !== 1 ? 's' : ''}`)
+  }
+  return parts.join(' \u2022 ')
+}
+
 async function showMeetingNotification(event: CalendarEvent): Promise<void> {
   console.log('[MeetingNotifier] Showing notification for:', event.title)
 
-  // Bring app to foreground so the dialog is visible over other apps
-  const win = getMainWindow()
-  if (win) {
-    if (!win.isVisible()) win.show()
-    win.setAlwaysOnTop(true)
-    win.focus()
-    win.setAlwaysOnTop(false)
+  if (!Notification.isSupported()) {
+    console.warn('[MeetingNotifier] Notifications not supported, falling back to focus+record')
+    focusAndRecord(event)
+    return
   }
+
   // Bounce dock icon on macOS for extra attention
   if (process.platform === 'darwin') {
     app.dock.bounce('critical')
   }
 
-  // Show dialog with Start Recording / Dismiss buttons
-  const { response } = await dialog.showMessageBox({
-    type: 'info',
+  const notification = new Notification({
     title: 'Meeting starting soon',
-    message: `"${event.title}" is starting soon`,
-    detail: 'Would you like to start recording with GORP?',
-    buttons: ['Start Recording', 'Dismiss'],
-    defaultId: 0
+    subtitle: event.title,
+    body: formatNotificationBody(event),
+    silent: false
   })
 
-  if (response === 0) {
+  notification.on('click', () => {
+    console.log('[MeetingNotifier] Notification clicked for:', event.title)
+
+    // Open the meeting URL externally (Zoom, Meet, Teams, etc.)
+    if (event.meetingUrl) {
+      shell.openExternal(event.meetingUrl).catch((err) => {
+        console.error('[MeetingNotifier] Failed to open meeting URL:', err)
+      })
+    }
+
+    // Focus GORP window and start recording
     focusAndRecord(event)
-  }
+  })
+
+  notification.show()
 }
 
 async function checkUpcomingMeetings(): Promise<void> {

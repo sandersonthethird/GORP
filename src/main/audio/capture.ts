@@ -17,7 +17,7 @@ export class AudioCapture extends EventEmitter {
 
   constructor() {
     super()
-    this.streamManager = new AudioStreamManager(16000, 1, 100)
+    this.streamManager = new AudioStreamManager(16000, 2, 100)
 
     this.streamManager.on('chunk', (chunk: Buffer) => {
       this.emit('audio-chunk', chunk)

@@ -10,7 +10,7 @@ export class DeepgramStreamingClient extends EventEmitter {
   private keepAliveInterval: ReturnType<typeof setInterval> | null = null
   private audioBuffer: Buffer[] = []
   private isClosing = false
-  private config: Required<DeepgramConfig>
+  private config: Required<Omit<DeepgramConfig, 'maxSpeakers'>> & Pick<DeepgramConfig, 'maxSpeakers'>
 
   constructor(config: DeepgramConfig) {
     super()
@@ -20,7 +20,8 @@ export class DeepgramStreamingClient extends EventEmitter {
       language: config.language || 'en',
       sampleRate: config.sampleRate || 16000,
       channels: config.channels || 1,
-      encoding: config.encoding || 'linear16'
+      encoding: config.encoding || 'linear16',
+      maxSpeakers: config.maxSpeakers
     }
   }
 
@@ -33,9 +34,12 @@ export class DeepgramStreamingClient extends EventEmitter {
       language: this.config.language,
       smart_format: true,
       diarize: true,
+      ...(this.config.maxSpeakers ? { max_speakers: this.config.maxSpeakers } : {}),
       interim_results: true,
       utterance_end_ms: 1500,
       endpointing: 300,
+      vad_events: true,
+      ...(this.config.channels > 1 ? { multichannel: true } : {}),
       // keywords: DEFAULT_DEEPGRAM_KEYWORDS,  // Disabled - may cause connection issues
       encoding: this.config.encoding as 'linear16',
       sample_rate: this.config.sampleRate,
@@ -100,6 +104,7 @@ export class DeepgramStreamingClient extends EventEmitter {
       speech_final: boolean
       start: number
       duration: number
+      channel_index: number[]
       channel: {
         alternatives: Array<{
           transcript: string
@@ -125,7 +130,8 @@ export class DeepgramStreamingClient extends EventEmitter {
       isFinal: result.is_final,
       speechFinal: result.speech_final,
       start: result.start,
-      duration: result.duration
+      duration: result.duration,
+      channelIndex: result.channel_index?.[0] ?? 0
     }
 
     this.emit('transcript', transcriptResult)
