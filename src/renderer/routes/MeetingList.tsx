@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMeetings } from '../hooks/useMeetings'
 import { useSearch } from '../hooks/useSearch'
 import { useAppStore } from '../stores/app.store'
 import { useRecordingStore } from '../stores/recording.store'
+import { useChatStore } from '../stores/chat.store'
 import { IPC_CHANNELS } from '../../shared/constants/channels'
 import MeetingCard from '../components/meetings/MeetingCard'
 import CalendarBadge from '../components/meetings/CalendarBadge'
+import ChatInterface from '../components/chat/ChatInterface'
 import EmptyState from '../components/common/EmptyState'
 import type { CalendarEvent } from '../../shared/types/calendar'
 import type { Meeting } from '../../shared/types/meeting'
@@ -75,6 +77,7 @@ export default function MeetingList() {
   const dismissedEventIds = useAppStore((s) => s.dismissedEventIds)
   const dismissEvent = useAppStore((s) => s.dismissEvent)
   const startRecording = useRecordingStore((s) => s.startRecording)
+  const clearConversation = useChatStore((s) => s.clearConversation)
   const [showAllUpcoming, setShowAllUpcoming] = useState(false)
 
   const UPCOMING_LIMIT = 2
@@ -143,6 +146,12 @@ export default function MeetingList() {
     : pastMeetings.map((m) => ({ id: m.id, meeting: m, snippet: undefined }))
 
   const showUpcoming = calendarConnected && visibleCalendarEvents.length > 0 && !hasSearch
+
+  // Clear search chat when results change
+  const searchResultIds = useMemo(() => searchResults.map((r) => r.meetingId), [searchResults])
+  useEffect(() => {
+    clearConversation('search-results')
+  }, [searchResultIds, clearConversation])
 
   if (!searchQuery && pastMeetings.length === 0 && !showUpcoming) {
     return (
@@ -248,6 +257,12 @@ export default function MeetingList() {
 
       {searchQuery && !isSearching && searchResults.length === 0 && (
         <p className={styles.noResults}>No meetings match your search.</p>
+      )}
+
+      {hasSearch && !isSearching && searchResults.length > 0 && (
+        <div className={styles.chatSection}>
+          <ChatInterface meetingIds={searchResultIds} />
+        </div>
       )}
     </div>
   )
