@@ -63,14 +63,14 @@ async function showMeetingNotification(event: CalendarEvent): Promise<void> {
   }
 
   const notification = new Notification({
-    title: 'Meeting starting soon',
+    title: 'Meeting starting soon — click to start',
     subtitle: event.title,
     body: formatNotificationBody(event),
     silent: false
   })
 
   notification.on('click', () => {
-    console.log('[MeetingNotifier] Notification clicked for:', event.title)
+    console.log('[MeetingNotifier] Starting meeting for:', event.title)
 
     // Open the meeting URL externally (Zoom, Meet, Teams, etc.)
     if (event.meetingUrl) {
