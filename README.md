@@ -1,4 +1,4 @@
-# GORP
+# Cyggie
 
 A desktop meeting intelligence system — capture, transcribe, summarize, and search your meetings with AI.
 
@@ -69,7 +69,7 @@ A desktop meeting intelligence system — capture, transcribe, summarize, and se
 
 ```bash
 # Clone the repository
-git clone https://github.com/sandersonthethird/GORP
+git clone https://github.com/sandersonthethird/Cyggie
 cd gorp
 
 # Install dependencies
@@ -83,13 +83,13 @@ Once the app launches, open **Settings** to configure your API keys (see below).
 
 ## API Key Setup
 
-GORP requires your own API keys — no keys are included with the app. All keys are encrypted and stored locally on your machine using Electron's safe storage.
+Cyggie requires your own API keys — no keys are included with the app. All keys are encrypted and stored locally on your machine using Electron's safe storage.
 
 ### 1. Deepgram (required for transcription)
 
 1. Sign up for a free account at [console.deepgram.com](https://console.deepgram.com/signup)
 2. Go to **API Keys** in the Deepgram dashboard and create a new key
-3. In GORP, open **Settings > Transcription** and paste your key
+3. In Cyggie, open **Settings > Transcription** and paste your key
 
 Deepgram's free tier includes $200 in credit, which covers many hours of transcription.
 
@@ -97,7 +97,7 @@ Deepgram's free tier includes $200 in credit, which covers many hours of transcr
 
 1. Sign up at [console.anthropic.com](https://console.anthropic.com/)
 2. Go to **Settings > API Keys** and create a new key
-3. In GORP, open **Settings > Summarization**, select **Claude**, and paste your key
+3. In Cyggie, open **Settings > Summarization**, select **Claude**, and paste your key
 
 > **Free alternative:** If you'd prefer not to use a paid API, select **Ollama** as your LLM provider in Settings. [Install Ollama](https://ollama.com/) and run a model locally at no cost.
 
