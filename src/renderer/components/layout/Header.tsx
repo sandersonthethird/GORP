@@ -3,6 +3,7 @@ import styles from './Header.module.css'
 
 const TITLES: Record<string, string> = {
   '/': 'Meetings',
+  '/companies': 'Companies',
   '/recording': 'Recording',
   '/templates': 'Templates',
   '/settings': 'Settings'
@@ -10,7 +11,9 @@ const TITLES: Record<string, string> = {
 
 export default function Header() {
   const location = useLocation()
-  const title = TITLES[location.pathname] || 'Cyggie'
+  const title = location.pathname.startsWith('/company/')
+    ? 'Company'
+    : (TITLES[location.pathname] || 'Cyggie')
 
   return (
     <header className={styles.header}>

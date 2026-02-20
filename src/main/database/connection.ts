@@ -11,6 +11,14 @@ import { runCompaniesMigration } from './migrations/008-companies'
 import { runCompaniesCacheMigration } from './migrations/009-companies-cache'
 import { runClearCompanyCacheMigration } from './migrations/010-clear-company-cache'
 import { runRecordingPathMigration } from './migrations/011-recording-path'
+import { runCompanyOsCoreMigration } from './migrations/012-company-os-core'
+import { runCompanyOsEmailMigration } from './migrations/013-company-os-email'
+import { runCompanyOsArtifactsMigration } from './migrations/014-company-os-artifacts'
+import { runCompanyOsChatMigration } from './migrations/015-company-os-chat'
+import { runCompanyOsNotesMigration } from './migrations/016-company-os-notes'
+import { runCompanyOsMemoMigration } from './migrations/017-company-os-memo'
+import { runCompanyOsThesisMigration } from './migrations/018-company-os-thesis'
+import { runCompanyOsBackfillMigration } from './migrations/019-company-os-backfill'
 
 let db: Database.Database | null = null
 
@@ -30,6 +38,14 @@ export function getDatabase(): Database.Database {
     runCompaniesCacheMigration(db)
     runClearCompanyCacheMigration(db)
     runRecordingPathMigration(db)
+    runCompanyOsCoreMigration(db)
+    runCompanyOsEmailMigration(db)
+    runCompanyOsArtifactsMigration(db)
+    runCompanyOsChatMigration(db)
+    runCompanyOsNotesMigration(db)
+    runCompanyOsMemoMigration(db)
+    runCompanyOsThesisMigration(db)
+    runCompanyOsBackfillMigration(db)
   }
   return db
 }

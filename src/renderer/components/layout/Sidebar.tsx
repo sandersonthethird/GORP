@@ -6,6 +6,7 @@ import { IPC_CHANNELS } from '../../../shared/constants/channels'
 import MiniCalendar from './MiniCalendar'
 import type { CalendarEvent } from '../../../shared/types/calendar'
 import type { Meeting } from '../../../shared/types/meeting'
+import { useFeatureFlag } from '../../hooks/useFeatureFlags'
 import logo from '../../assets/logo.png'
 
 export default function Sidebar() {
@@ -15,6 +16,7 @@ export default function Sidebar() {
   const calendarConnected = useAppStore((s) => s.calendarConnected)
   const dismissedEventIds = useAppStore((s) => s.dismissedEventIds)
   const dismissEvent = useAppStore((s) => s.dismissEvent)
+  const { enabled: companiesEnabled } = useFeatureFlag('ff_companies_ui_v1')
 
   const handleRecordFromCalendar = async (event: CalendarEvent) => {
     try {
@@ -61,6 +63,15 @@ export default function Sidebar() {
           <span className={styles.icon}>&#9776;</span>
           Meetings
         </NavLink>
+        {companiesEnabled && (
+          <NavLink
+            to="/companies"
+            className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ''}`}
+          >
+            <span className={styles.icon}>&#127970;</span>
+            Companies
+          </NavLink>
+        )}
         <NavLink
           to="/templates"
           className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ''}`}

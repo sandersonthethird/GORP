@@ -9,6 +9,10 @@ import { registerDriveHandlers } from './drive.ipc'
 import { registerChatHandlers } from './chat.ipc'
 import { registerWebShareHandlers } from './web-share.ipc'
 import { registerVideoHandlers } from './video.ipc'
+import { registerCompanyHandlers } from './company.ipc'
+import { registerCompanyNotesHandlers } from './company-notes.ipc'
+import { registerCompanyChatHandlers } from './company-chat.ipc'
+import { registerInvestmentMemoHandlers } from './investment-memo.ipc'
 
 export function registerAllHandlers(): void {
   registerMeetingHandlers()
@@ -22,4 +26,8 @@ export function registerAllHandlers(): void {
   registerChatHandlers()
   registerWebShareHandlers()
   registerVideoHandlers()
+  registerCompanyHandlers()
+  registerCompanyNotesHandlers()
+  registerCompanyChatHandlers()
+  registerInvestmentMemoHandlers()
 }

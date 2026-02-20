@@ -24,7 +24,13 @@ export function initializeStorage(): void {
 }
 
 function ensureStorageDirs(basePath: string): void {
-  const dirs = [basePath, join(basePath, 'transcripts'), join(basePath, 'summaries'), join(basePath, 'recordings')]
+  const dirs = [
+    basePath,
+    join(basePath, 'transcripts'),
+    join(basePath, 'summaries'),
+    join(basePath, 'recordings'),
+    join(basePath, 'memos')
+  ]
 
   for (const dir of dirs) {
     if (!existsSync(dir)) {
@@ -47,4 +53,8 @@ export function getRecordingsDir(): string {
 
 export function getDatabasePath(): string {
   return join(getStoragePath(), 'echovault.db')
+}
+
+export function getMemosDir(): string {
+  return join(getStoragePath(), 'memos')
 }

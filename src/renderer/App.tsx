@@ -3,6 +3,8 @@ import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import MeetingList from './routes/MeetingList'
 import MeetingDetail from './routes/MeetingDetail'
+import Companies from './routes/Companies'
+import CompanyDetail from './routes/CompanyDetail'
 import Templates from './routes/Templates'
 import Settings from './routes/Settings'
 import { useCalendar } from './hooks/useCalendar'
@@ -53,6 +55,8 @@ export default function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<MeetingList />} />
             <Route path="/meeting/:id" element={<MeetingDetail />} />
+            <Route path="/companies" element={<Companies />} />
+            <Route path="/company/:companyId" element={<CompanyDetail />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/settings" element={<Settings />} />
           </Route>

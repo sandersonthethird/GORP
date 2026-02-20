@@ -35,6 +35,32 @@ export const IPC_CHANNELS = {
   // Company enrichment
   COMPANY_ENRICH_MEETING: 'company:enrich-meeting',
   COMPANY_GET_SUGGESTIONS: 'company:get-suggestions',
+  COMPANY_LIST: 'company:list',
+  COMPANY_GET: 'company:get',
+  COMPANY_CREATE: 'company:create',
+  COMPANY_UPDATE: 'company:update',
+  COMPANY_MEETINGS: 'company:meetings',
+  COMPANY_EMAILS: 'company:emails',
+  COMPANY_TIMELINE: 'company:timeline',
+
+  // Company notes
+  COMPANY_NOTES_LIST: 'company-notes:list',
+  COMPANY_NOTES_CREATE: 'company-notes:create',
+  COMPANY_NOTES_UPDATE: 'company-notes:update',
+  COMPANY_NOTES_DELETE: 'company-notes:delete',
+
+  // Company chat
+  COMPANY_CHAT_LIST: 'company-chat:list',
+  COMPANY_CHAT_CREATE: 'company-chat:create',
+  COMPANY_CHAT_MESSAGES: 'company-chat:messages',
+  COMPANY_CHAT_APPEND: 'company-chat:append',
+
+  // Investment memo
+  INVESTMENT_MEMO_GET_OR_CREATE: 'investment-memo:get-or-create',
+  INVESTMENT_MEMO_LIST_VERSIONS: 'investment-memo:list-versions',
+  INVESTMENT_MEMO_SAVE_VERSION: 'investment-memo:save-version',
+  INVESTMENT_MEMO_SET_STATUS: 'investment-memo:set-status',
+  INVESTMENT_MEMO_EXPORT_PDF: 'investment-memo:export-pdf',
 
   // Speaker rename
   MEETING_RENAME_SPEAKERS: 'meeting:rename-speakers',
