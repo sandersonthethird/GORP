@@ -18,6 +18,7 @@ import { RecordingAutoStop } from '../recording/auto-stop'
 import { extractCompaniesFromEmails } from '../utils/company-extractor'
 import type { TranscriptResult } from '../deepgram/types'
 import type { TranscriptSegment } from '../../shared/types/recording'
+import { DEFAULT_DEEPGRAM_KEYWORDS } from '../../shared/constants/deepgram-keywords'
 
 let audioCapture: AudioCapture | null = null
 let deepgramClient: DeepgramStreamingClient | null = null
@@ -30,6 +31,8 @@ let calendarSelfName: string | null = null
 let calendarAttendees: string[] = []
 let calendarAttendeeEmails: string[] = []
 let calendarEndTime: string | null = null
+const DEBUG_TRANSCRIPTION =
+  process.env['NODE_ENV'] === 'development' && process.env['GORP_DEBUG_TRANSCRIPTION'] === '1'
 
 function getMainWindow(): BrowserWindow | null {
   const windows = BrowserWindow.getAllWindows()
@@ -41,6 +44,39 @@ function sendToRenderer(channel: string, data: unknown): void {
   if (win && !win.isDestroyed()) {
     win.webContents.send(channel, data)
   }
+}
+
+function buildDeepgramKeyterms(meetingTitle: string | undefined, attendees: string[]): string[] {
+  const terms = new Set<string>()
+
+  // Keep a compact base list to reduce request-size risk while still boosting common terms.
+  for (const keyword of DEFAULT_DEEPGRAM_KEYWORDS.slice(0, 60)) {
+    if (keyword.trim()) terms.add(keyword.trim())
+  }
+
+  if (meetingTitle) {
+    const normalizedTitle = meetingTitle.trim()
+    if (normalizedTitle) {
+      terms.add(normalizedTitle)
+      const titleParts = normalizedTitle
+        .split(/[\s,:;()<>/\\-]+/)
+        .map((p) => p.trim())
+        .filter((p) => p.length >= 3)
+      for (const part of titleParts) {
+        terms.add(part)
+      }
+    }
+  }
+
+  for (const attendee of attendees) {
+    const clean = attendee.trim()
+    if (!clean) continue
+    terms.add(clean)
+    const firstToken = clean.split(/\s+/)[0]
+    if (firstToken && firstToken.length >= 3) terms.add(firstToken)
+  }
+
+  return [...terms].slice(0, 100)
 }
 
 export function registerRecordingHandlers(): void {
@@ -58,6 +94,7 @@ export function registerRecordingHandlers(): void {
     transcriptAssembler = new TranscriptAssembler()
     audioCapture = new AudioCapture()
     let maxSpeakers: number | undefined
+    let expectedSpeakerCount: number | undefined
     let meetingPlatform: string | null = null
 
     // Append to existing meeting
@@ -79,6 +116,7 @@ export function registerRecordingHandlers(): void {
           calendarSelfName = speakers[0] || null
           calendarAttendees = speakers.slice(1)
           maxSpeakers = speakers.length
+          expectedSpeakerCount = speakers.length
         }
       }
 
@@ -112,6 +150,7 @@ export function registerRecordingHandlers(): void {
       // Set max speakers from calendar attendees (self + attendees)
       if (calendarAttendees.length > 0) {
         maxSpeakers = 1 + calendarAttendees.length
+        expectedSpeakerCount = 1 + calendarAttendees.length
       } else {
         // Fall back to user's default setting for ad-hoc recordings
         const defaultMax = getSetting('defaultMaxSpeakers')
@@ -164,24 +203,41 @@ export function registerRecordingHandlers(): void {
       currentMeetingId = meeting.id
       recordingStartTime = Date.now()
     }
+    transcriptAssembler.setExpectedSpeakerCount(expectedSpeakerCount)
+
+    const meetingForKeywords = currentMeetingId ? meetingRepo.getMeeting(currentMeetingId) : null
+    const deepgramKeyterms = buildDeepgramKeyterms(
+      meetingForKeywords?.title,
+      meetingForKeywords?.attendees || calendarAttendees
+    )
 
     // Create Deepgram client with speaker count constraint and multichannel audio
-    deepgramClient = new DeepgramStreamingClient({ apiKey: deepgramKey, maxSpeakers, channels: 2 })
+    deepgramClient = new DeepgramStreamingClient({
+      apiKey: deepgramKey,
+      maxSpeakers,
+      channels: 2,
+      keyterms: deepgramKeyterms
+    })
 
     // Wire audio -> Deepgram
     audioCapture.on('audio-chunk', (chunk: Buffer) => {
-      console.log('[Recording] Audio chunk received:', chunk.length, 'bytes')
+      if (DEBUG_TRANSCRIPTION) {
+        console.log('[Recording] Audio chunk received:', chunk.length, 'bytes')
+      }
       deepgramClient?.sendAudio(chunk)
     })
 
     // Wire Deepgram -> transcript assembler -> renderer
     deepgramClient.on('transcript', (result: TranscriptResult) => {
-      console.log('[Recording] Deepgram transcript received:', {
-        text: result.text,
-        isFinal: result.isFinal,
-        speechFinal: result.speechFinal,
-        wordCount: result.words?.length || 0
-      })
+      if (DEBUG_TRANSCRIPTION) {
+        console.log('[Recording] Deepgram transcript received:', {
+          text: result.text,
+          isFinal: result.isFinal,
+          speechFinal: result.speechFinal,
+          fromFinalize: result.fromFinalize,
+          wordCount: result.words?.length || 0
+        })
+      }
       transcriptAssembler?.addResult(result)
 
       const interim = transcriptAssembler?.getInterimSegment()
@@ -270,7 +326,9 @@ export function registerRecordingHandlers(): void {
 
   // Receive audio data from renderer (for microphone/system capture done in renderer)
   ipcMain.on('recording:audio-data', (_event, data: ArrayBuffer) => {
-    console.log('[Recording] Audio data from renderer:', data.byteLength, 'bytes')
+    if (DEBUG_TRANSCRIPTION) {
+      console.log('[Recording] Audio data from renderer:', data.byteLength, 'bytes')
+    }
     if (audioCapture) {
       audioCapture.feedAudioFromRenderer(Buffer.from(data))
     }
@@ -317,12 +375,18 @@ export function registerRecordingHandlers(): void {
     // Stop audio capture
     audioCapture?.stop()
 
-    // Wait for Deepgram to process any remaining audio in flight
-    // Need enough time for: network latency + Deepgram processing + utterance_end_ms (1500ms)
-    await new Promise((resolve) => setTimeout(resolve, 4000))
-
-    // Close Deepgram connection
-    await deepgramClient?.close()
+    // Ask Deepgram to flush buffered text before closing the stream so tail-end
+    // utterances are less likely to be dropped.
+    try {
+      await deepgramClient?.finalizeAndClose({
+        quietMs: 900,
+        maxWaitMs: 9000,
+        closeWaitMs: 3500
+      })
+    } catch (err) {
+      console.warn('[Recording] Deepgram finalize close failed, forcing close:', err)
+      await deepgramClient?.close()
+    }
 
     // Finalize transcript - promote any pending interim segment
     const meeting = meetingRepo.getMeeting(meetingId)

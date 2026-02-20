@@ -14,7 +14,17 @@ import { cleanupOrphanedTempFiles } from './video/video-writer'
 // Register media:// as a privileged scheme so the renderer can load local
 // video files through it (file:// is blocked by cross-origin restrictions).
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'media', privileges: { stream: true, bypassCSP: true } }
+  {
+    scheme: 'media',
+    privileges: {
+      standard: true,
+      secure: true,
+      stream: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      bypassCSP: true
+    }
+  }
 ])
 
 // Enable system audio loopback capture (must be called before app.whenReady)
@@ -33,6 +43,17 @@ function getMediaContentType(filePath: string): string {
     : extension === '.webm'
       ? 'video/webm'
       : 'application/octet-stream'
+}
+
+function withCorsHeaders(
+  headers: Record<string, string>
+): Record<string, string> {
+  return {
+    ...headers,
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,HEAD,OPTIONS',
+    'Access-Control-Expose-Headers': 'Content-Type,Content-Length,Accept-Ranges,Content-Range'
+  }
 }
 
 function parseUnsignedInt(value: string): number | null {
@@ -158,6 +179,13 @@ app.whenReady().then(() => {
   // Handle media:// protocol — serve files from the recordings directory with explicit range support
   // so the video element can seek reliably.
   protocol.handle('media', async (request) => {
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: withCorsHeaders({})
+      })
+    }
+
     const url = new URL(request.url)
     const filename = decodeURIComponent(url.pathname).replace(/^\/+/, '')
     const recordingsDir = normalize(join(getRecordingsDir(), '/'))
@@ -179,11 +207,11 @@ app.whenReady().then(() => {
       if (!range) {
         return new Response(null, {
           status: 416,
-          headers: {
+          headers: withCorsHeaders({
             'Content-Range': `bytes */${fileSize}`,
             'Accept-Ranges': 'bytes',
             'Content-Type': contentType
-          }
+          })
         })
       }
 
@@ -195,25 +223,25 @@ app.whenReady().then(() => {
         'Content-Range': `bytes ${range.start}-${range.end}/${fileSize}`
       }
       if (request.method === 'HEAD') {
-        return new Response(null, { status: 206, headers: responseHeaders })
+        return new Response(null, { status: 206, headers: withCorsHeaders(responseHeaders) })
       }
 
       const stream = createReadStream(filePath, { start: range.start, end: range.end })
       const body = Readable.toWeb(stream) as unknown as BodyInit
       return new Response(body, {
         status: 206,
-        headers: responseHeaders
+        headers: withCorsHeaders(responseHeaders)
       })
     }
 
     if (request.method === 'HEAD') {
       return new Response(null, {
         status: 200,
-        headers: {
+        headers: withCorsHeaders({
           'Content-Type': contentType,
           'Accept-Ranges': 'bytes',
           'Content-Length': String(fileSize)
-        }
+        })
       })
     }
 
@@ -221,11 +249,11 @@ app.whenReady().then(() => {
     const body = Readable.toWeb(fullStream) as unknown as BodyInit
     return new Response(body, {
       status: 200,
-      headers: {
+      headers: withCorsHeaders({
         'Content-Type': contentType,
         'Accept-Ranges': 'bytes',
         'Content-Length': String(fileSize)
-      }
+      })
     })
   })
 

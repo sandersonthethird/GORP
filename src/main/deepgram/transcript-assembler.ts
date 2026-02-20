@@ -2,6 +2,11 @@ import type { TranscriptResult, DeepgramWord } from './types'
 import type { TranscriptSegment, TranscriptWord } from '../../shared/types/recording'
 
 type ChannelMode = 'detecting' | 'multichannel' | 'diarization'
+const DEBUG_TRANSCRIPTION =
+  process.env['NODE_ENV'] === 'development' && process.env['GORP_DEBUG_TRANSCRIPTION'] === '1'
+const SPEAKER_SWITCH_MIN_WORDS = 4
+const SPEAKER_SWITCH_MIN_DURATION_SECONDS = 1.0
+const SPEAKER_SWITCH_MIN_CONFIDENCE = 0.6
 
 export class TranscriptAssembler {
   private finalizedSegments: TranscriptSegment[] = []
@@ -9,6 +14,7 @@ export class TranscriptAssembler {
   private knownSpeakers = new Set<number>()
   private timeOffset = 0
   private activeChannels = new Set<number>()
+  private expectedSpeakerCount: number | null = null
 
   /**
    * Auto-detection state machine for channel mode:
@@ -25,6 +31,14 @@ export class TranscriptAssembler {
 
   constructor() {
     // no-op — detection is automatic
+  }
+
+  setExpectedSpeakerCount(expectedCount?: number): void {
+    if (typeof expectedCount !== 'number' || !Number.isFinite(expectedCount) || expectedCount <= 0) {
+      this.expectedSpeakerCount = null
+      return
+    }
+    this.expectedSpeakerCount = Math.max(1, Math.floor(expectedCount))
   }
 
   /**
@@ -46,7 +60,7 @@ export class TranscriptAssembler {
     if (!result.text.trim()) return
 
     // Diagnostic: log speaker confidence values for tuning
-    if (result.isFinal && result.words.length > 0) {
+    if (DEBUG_TRANSCRIPTION && result.isFinal && result.words.length > 0) {
       const confValues = result.words.map((w) => w.speaker_confidence?.toFixed(2) ?? 'N/A')
       const speakers = result.words.map((w) => w.speaker)
       console.log(
@@ -80,9 +94,17 @@ export class TranscriptAssembler {
       : result.words
 
     const segments = this.groupWordsBySpeaker(words)
+    if (segments.length === 0) {
+      const fallback = this.buildTextOnlySegment(result, useMultichannel)
+      if (fallback) {
+        segments.push(fallback)
+      }
+    }
+    const stabilizedSegments = this.stabilizeSpeakerSwitches(segments, useMultichannel)
+    const normalizedSegments = this.normalizeToExpectedSpeakerCount(stabilizedSegments, useMultichannel)
 
     if (result.isFinal) {
-      for (const seg of segments) {
+      for (const seg of normalizedSegments) {
         if (useMultichannel) {
           this.insertChronologically(seg)
         } else {
@@ -93,8 +115,8 @@ export class TranscriptAssembler {
       this.currentInterim = null
     } else {
       // Only update interim display
-      this.currentInterim = segments[segments.length - 1] || null
-      for (const seg of segments) {
+      this.currentInterim = normalizedSegments[normalizedSegments.length - 1] || null
+      for (const seg of normalizedSegments) {
         this.knownSpeakers.add(seg.speaker)
       }
     }
@@ -227,6 +249,164 @@ export class TranscriptAssembler {
 
     if (current) segments.push(current)
     return segments
+  }
+
+  private stabilizeSpeakerSwitches(
+    segments: TranscriptSegment[],
+    useMultichannel: boolean
+  ): TranscriptSegment[] {
+    if (segments.length === 0 || useMultichannel) return segments
+
+    const previousSpeaker = this.currentInterim?.speaker
+      ?? this.finalizedSegments[this.finalizedSegments.length - 1]?.speaker
+
+    if (typeof previousSpeaker !== 'number') return segments
+
+    let activeSpeaker = previousSpeaker
+    const stabilized: TranscriptSegment[] = []
+
+    for (const seg of segments) {
+      if (seg.speaker === activeSpeaker || this.shouldAcceptSpeakerSwitch(seg)) {
+        stabilized.push(seg)
+        activeSpeaker = seg.speaker
+      } else {
+        if (DEBUG_TRANSCRIPTION) {
+          console.log(
+            '[TranscriptAssembler] Suppressing low-evidence speaker switch',
+            `from=${activeSpeaker} to=${seg.speaker} words=${seg.words.length} ` +
+              `duration=${(seg.endTime - seg.startTime).toFixed(2)}s`
+          )
+        }
+        stabilized.push(this.reassignSegmentSpeaker(seg, activeSpeaker))
+      }
+    }
+
+    return this.mergeAdjacentSegments(stabilized)
+  }
+
+  private shouldAcceptSpeakerSwitch(seg: TranscriptSegment): boolean {
+    const wordCount = seg.words.length
+    const durationSeconds = Math.max(seg.endTime - seg.startTime, 0)
+    if (wordCount === 0) return false
+
+    const avgSpeakerConfidence = seg.words.reduce((sum, word) => {
+      const conf = Number.isFinite(word.speakerConfidence) ? word.speakerConfidence : 0
+      return sum + conf
+    }, 0) / wordCount
+
+    const hasEnoughSpeech =
+      wordCount >= SPEAKER_SWITCH_MIN_WORDS || durationSeconds >= SPEAKER_SWITCH_MIN_DURATION_SECONDS
+
+    return hasEnoughSpeech && avgSpeakerConfidence >= SPEAKER_SWITCH_MIN_CONFIDENCE
+  }
+
+  private normalizeToExpectedSpeakerCount(
+    segments: TranscriptSegment[],
+    useMultichannel: boolean
+  ): TranscriptSegment[] {
+    const expectedCount = this.expectedSpeakerCount
+    if (!expectedCount || expectedCount <= 0 || segments.length === 0) return segments
+
+    let fallbackSpeaker = this.currentInterim?.speaker
+      ?? this.finalizedSegments[this.finalizedSegments.length - 1]?.speaker
+    const normalized: TranscriptSegment[] = []
+
+    for (const seg of segments) {
+      if (seg.speaker >= 0 && seg.speaker < expectedCount) {
+        normalized.push(seg)
+        fallbackSpeaker = seg.speaker
+        continue
+      }
+
+      const safeFallback = typeof fallbackSpeaker === 'number'
+        ? Math.max(0, Math.min(fallbackSpeaker, expectedCount - 1))
+        : (useMultichannel ? Math.max(0, expectedCount - 1) : 0)
+
+      if (DEBUG_TRANSCRIPTION) {
+        console.log(
+          '[TranscriptAssembler] Remapping out-of-range speaker',
+          `speaker=${seg.speaker} -> ${safeFallback} expectedCount=${expectedCount}`
+        )
+      }
+
+      normalized.push(this.reassignSegmentSpeaker(seg, safeFallback))
+      fallbackSpeaker = safeFallback
+    }
+
+    return this.mergeAdjacentSegments(normalized)
+  }
+
+  private reassignSegmentSpeaker(seg: TranscriptSegment, speaker: number): TranscriptSegment {
+    return {
+      ...seg,
+      speaker,
+      words: seg.words.map((word) => ({
+        ...word,
+        speaker
+      }))
+    }
+  }
+
+  private mergeAdjacentSegments(segments: TranscriptSegment[]): TranscriptSegment[] {
+    if (segments.length <= 1) return segments
+
+    const merged: TranscriptSegment[] = []
+    for (const seg of segments) {
+      const prev = merged[merged.length - 1]
+      if (prev && prev.speaker === seg.speaker) {
+        prev.text += ' ' + seg.text
+        prev.endTime = seg.endTime
+        prev.words.push(...seg.words)
+      } else {
+        merged.push({
+          ...seg,
+          words: [...seg.words]
+        })
+      }
+    }
+    return merged
+  }
+
+  private inferFallbackSpeaker(useMultichannel: boolean, channelIndex: number): number {
+    if (useMultichannel) {
+      return channelIndex === 0 ? 0 : 1
+    }
+
+    if (this.currentInterim) return this.currentInterim.speaker
+    const lastFinalized = this.finalizedSegments[this.finalizedSegments.length - 1]
+    if (lastFinalized) return lastFinalized.speaker
+    return 0
+  }
+
+  private buildTextOnlySegment(
+    result: TranscriptResult,
+    useMultichannel: boolean
+  ): TranscriptSegment | null {
+    const cleanedText = result.text.trim()
+    if (!cleanedText) return null
+
+    const speaker = this.inferFallbackSpeaker(useMultichannel, result.channelIndex)
+    const startTime = result.start + this.timeOffset
+    const duration = Math.max(result.duration, 0.05)
+    const endTime = startTime + duration
+    const fallbackWord: TranscriptWord = {
+      word: cleanedText,
+      start: startTime,
+      end: endTime,
+      confidence: 0.8,
+      speaker,
+      speakerConfidence: 1,
+      punctuatedWord: cleanedText
+    }
+
+    return {
+      speaker,
+      text: cleanedText,
+      startTime,
+      endTime,
+      isFinal: true,
+      words: [fallbackWord]
+    }
   }
 
   getDisplaySegments(): TranscriptSegment[] {
@@ -457,5 +637,6 @@ export class TranscriptAssembler {
     this.timeOffset = 0
     this.channelMode = 'detecting'
     this.channel0FinalCount = 0
+    this.expectedSpeakerCount = null
   }
 }

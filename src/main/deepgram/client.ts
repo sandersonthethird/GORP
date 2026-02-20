@@ -1,7 +1,12 @@
 import { EventEmitter } from 'events'
 import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk'
 import type { DeepgramConfig, TranscriptResult, DeepgramWord } from './types'
-// import { DEFAULT_DEEPGRAM_KEYWORDS } from '../../shared/constants/deepgram-keywords'
+
+interface FinalizeCloseOptions {
+  quietMs?: number
+  maxWaitMs?: number
+  closeWaitMs?: number
+}
 
 export class DeepgramStreamingClient extends EventEmitter {
   private connection: ReturnType<ReturnType<typeof createClient>['listen']['live']> | null = null
@@ -10,7 +15,10 @@ export class DeepgramStreamingClient extends EventEmitter {
   private keepAliveInterval: ReturnType<typeof setInterval> | null = null
   private audioBuffer: Buffer[] = []
   private isClosing = false
+  private lastTranscriptAt = 0
+  private warnedAboutKeytermModel = false
   private config: Required<Omit<DeepgramConfig, 'maxSpeakers'>> & Pick<DeepgramConfig, 'maxSpeakers'>
+    & { keyterms: string[] }
 
   constructor(config: DeepgramConfig) {
     super()
@@ -21,15 +29,23 @@ export class DeepgramStreamingClient extends EventEmitter {
       sampleRate: config.sampleRate || 16000,
       channels: config.channels || 1,
       encoding: config.encoding || 'linear16',
-      maxSpeakers: config.maxSpeakers
+      maxSpeakers: config.maxSpeakers,
+      keyterms: config.keyterms || []
     }
   }
 
-  async connect(): Promise<void> {
-    this.isClosing = false
-    const client = createClient(this.config.apiKey)
+  private buildLiveOptions(includeKeyterms: boolean): Record<string, unknown> {
+    const supportsKeyterm = this.config.model.startsWith('nova-3')
+    const keyterms = includeKeyterms && supportsKeyterm ? this.config.keyterms : []
 
-    this.connection = client.listen.live({
+    if (includeKeyterms && this.config.keyterms.length > 0 && !supportsKeyterm && !this.warnedAboutKeytermModel) {
+      this.warnedAboutKeytermModel = true
+      console.warn(
+        `[Deepgram] keyterms were provided but model "${this.config.model}" does not support keyterms.`
+      )
+    }
+
+    return {
       model: this.config.model,
       language: this.config.language,
       smart_format: true,
@@ -40,11 +56,26 @@ export class DeepgramStreamingClient extends EventEmitter {
       endpointing: 300,
       vad_events: true,
       ...(this.config.channels > 1 ? { multichannel: true } : {}),
-      // keywords: DEFAULT_DEEPGRAM_KEYWORDS,  // Disabled - may cause connection issues
+      ...(keyterms.length > 0 ? { keyterm: keyterms } : {}),
       encoding: this.config.encoding as 'linear16',
       sample_rate: this.config.sampleRate,
       channels: this.config.channels
-    })
+    }
+  }
+
+  async connect(): Promise<void> {
+    this.isClosing = false
+    const client = createClient(this.config.apiKey)
+    try {
+      this.connection = client.listen.live(this.buildLiveOptions(true))
+    } catch (err) {
+      if (this.config.keyterms.length > 0) {
+        console.warn('[Deepgram] Failed to initialize with keyterms, retrying without keyterms:', err)
+        this.connection = client.listen.live(this.buildLiveOptions(false))
+      } else {
+        throw err
+      }
+    }
 
     this.connection.on(LiveTranscriptionEvents.Open, () => {
       this.reconnectAttempts = 0
@@ -99,11 +130,13 @@ export class DeepgramStreamingClient extends EventEmitter {
   }
 
   private handleTranscriptResult(data: unknown): void {
+    this.lastTranscriptAt = Date.now()
     const result = data as {
       is_final: boolean
       speech_final: boolean
       start: number
       duration: number
+      from_finalize?: boolean
       channel_index: number[]
       channel: {
         alternatives: Array<{
@@ -131,7 +164,8 @@ export class DeepgramStreamingClient extends EventEmitter {
       speechFinal: result.speech_final,
       start: result.start,
       duration: result.duration,
-      channelIndex: result.channel_index?.[0] ?? 0
+      channelIndex: result.channel_index?.[0] ?? 0,
+      fromFinalize: result.from_finalize
     }
 
     this.emit('transcript', transcriptResult)
@@ -176,6 +210,65 @@ export class DeepgramStreamingClient extends EventEmitter {
     await new Promise((resolve) => setTimeout(resolve, delay))
     if (!this.isClosing) {
       await this.connect()
+    }
+  }
+
+  private async delay(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
+  private async waitForTranscriptDrain(quietMs: number, maxWaitMs: number): Promise<void> {
+    const start = Date.now()
+    while (Date.now() - start < maxWaitMs) {
+      const sinceLastTranscript = Date.now() - this.lastTranscriptAt
+      if (sinceLastTranscript >= quietMs) return
+      await this.delay(Math.min(quietMs, 200))
+    }
+  }
+
+  private async waitForDisconnected(timeoutMs: number): Promise<void> {
+    if (!this.connection || this.connection.getReadyState() !== 1) return
+    await new Promise<void>((resolve) => {
+      const onDisconnected = () => {
+        clearTimeout(timer)
+        this.off('disconnected', onDisconnected)
+        resolve()
+      }
+      const timer = setTimeout(() => {
+        this.off('disconnected', onDisconnected)
+        resolve()
+      }, timeoutMs)
+      this.on('disconnected', onDisconnected)
+    })
+  }
+
+  async finalizeAndClose(options: FinalizeCloseOptions = {}): Promise<void> {
+    const quietMs = options.quietMs ?? 900
+    const maxWaitMs = options.maxWaitMs ?? 8000
+    const closeWaitMs = options.closeWaitMs ?? 3000
+
+    this.isClosing = true
+    this.stopKeepAlive()
+
+    const connection = this.connection
+    if (!connection) {
+      this.audioBuffer = []
+      return
+    }
+
+    try {
+      if (connection.getReadyState() === 1) {
+        // Start a fresh quiet-window from finalize() so we don't close
+        // immediately when the last transcript event was long ago.
+        this.lastTranscriptAt = Date.now()
+        connection.finalize()
+        await this.waitForTranscriptDrain(quietMs, maxWaitMs)
+        connection.requestClose()
+        await this.waitForDisconnected(closeWaitMs)
+      }
+    } finally {
+      this.connection = null
+      this.audioBuffer = []
     }
   }
 

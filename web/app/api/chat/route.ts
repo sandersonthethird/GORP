@@ -130,18 +130,17 @@ export async function POST(request: Request) {
     },
   ]
 
-  const stream = await client.messages.create({
-    model: 'claude-sonnet-4-5-20250929',
-    max_tokens: 4096,
-    stream: true,
-    system: SYSTEM_PROMPT,
-    messages,
-  })
-
   const encoder = new TextEncoder()
   const readable = new ReadableStream({
     async start(controller) {
       try {
+        const stream = await client.messages.create({
+          model: 'claude-sonnet-4-5-20250929',
+          max_tokens: 4096,
+          stream: true,
+          system: SYSTEM_PROMPT,
+          messages,
+        })
         for await (const event of stream) {
           if (
             event.type === 'content_block_delta' &&

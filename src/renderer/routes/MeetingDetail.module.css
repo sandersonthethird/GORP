@@ -833,7 +833,7 @@
 
 .volumePopup {
   position: absolute;
-  bottom: 40px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(20, 20, 20, 0.95);
@@ -846,6 +846,7 @@
 .volumeSlider {
   -webkit-appearance: slider-vertical;
   appearance: slider-vertical;
+  accent-color: transparent;
   writing-mode: vertical-lr;
   direction: rtl;
   width: 4px;
@@ -860,15 +861,34 @@
   -webkit-appearance: none;
   width: 14px;
   height: 14px;
-  border-radius: 50%;
-  background: #fff;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  opacity: 0;
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: none;
 }
 
 .volumeSlider::-webkit-slider-runnable-track {
   width: 4px;
   border-radius: 2px;
+}
+
+.volumeSlider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  opacity: 0;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.volumeSlider::-moz-range-track {
+  width: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Overflow menu anchor (inside controls bar) */

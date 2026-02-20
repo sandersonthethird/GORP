@@ -34,6 +34,33 @@ function formatVideoTime(secs: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+function waitForMediaReady(video: HTMLVideoElement, timeoutMs = 3000): Promise<void> {
+  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+    return Promise.resolve()
+  }
+
+  return new Promise((resolve) => {
+    let settled = false
+    const finalize = () => {
+      if (settled) return
+      settled = true
+      cleanup()
+      resolve()
+    }
+    const cleanup = () => {
+      clearTimeout(timer)
+      video.removeEventListener('canplay', finalize)
+      video.removeEventListener('loadeddata', finalize)
+      video.removeEventListener('error', finalize)
+    }
+
+    const timer = setTimeout(finalize, timeoutMs)
+    video.addEventListener('canplay', finalize, { once: true })
+    video.addEventListener('loadeddata', finalize, { once: true })
+    video.addEventListener('error', finalize, { once: true })
+  })
+}
+
 interface MeetingData {
   meeting: Meeting
   transcript: string | null
@@ -85,6 +112,7 @@ export default function MeetingDetail() {
   const [videoPath, setVideoPath] = useState<string | null>(null)
   const [videoBlobUrl, setVideoBlobUrl] = useState<string | null>(null)
   const [isVideoLoading, setIsVideoLoading] = useState(false)
+  const [videoBlobFailed, setVideoBlobFailed] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const playRequestRef = useRef<Promise<void> | null>(null)
   const videoWrapperRef = useRef<HTMLDivElement>(null)
@@ -148,22 +176,50 @@ export default function MeetingDetail() {
   const handlePlayPause = useCallback(() => {
     const video = videoRef.current
     if (!video) return
+
+    const beginPlay = async () => {
+      // If the element has latched an error, force a reload from the current source.
+      if (video.error) {
+        const src = video.currentSrc || videoBlobUrl || videoPath
+        if (!src) return
+        video.pause()
+        video.removeAttribute('src')
+        video.load()
+        video.src = src
+        await waitForMediaReady(video)
+      } else if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+        await waitForMediaReady(video)
+      }
+
+      await video.play()
+    }
+
     if (video.paused) {
       // If playback is already at the end, restart from the beginning.
       if (isFinite(video.duration) && video.currentTime >= video.duration) {
         video.currentTime = 0
       }
-      const playPromise = video.play()
+      const playPromise = beginPlay()
       playRequestRef.current = playPromise
       playPromise.catch((err) => {
-        console.error('[MeetingDetail] Video play failed:', err)
+        console.error('[MeetingDetail] Video play failed:', {
+          err,
+          src: video.currentSrc,
+          readyState: video.readyState,
+          networkState: video.networkState,
+          currentTime: video.currentTime,
+          duration: video.duration,
+          error: video.error
+            ? { code: video.error.code, message: video.error.message }
+            : null
+        })
       }).finally(() => {
         playRequestRef.current = null
       })
     } else {
       video.pause()
     }
-  }, [])
+  }, [videoBlobUrl, videoPath])
 
   const syncVideoDuration = useCallback(() => {
     const video = videoRef.current
@@ -268,6 +324,7 @@ export default function MeetingDetail() {
 
     setVideoBlobUrl(null)
     setIsVideoLoading(false)
+    setVideoBlobFailed(false)
 
     if (!videoPath) return
 
@@ -286,6 +343,7 @@ export default function MeetingDetail() {
       .catch((err) => {
         if (controller.signal.aborted) return
         console.error('[MeetingDetail] Failed to fetch video blob:', err)
+        if (!cancelled) setVideoBlobFailed(true)
       })
       .finally(() => {
         if (!cancelled) setIsVideoLoading(false)
@@ -759,7 +817,8 @@ export default function MeetingDetail() {
   }
 
   const { meeting, transcript, summary } = data
-  const playbackSrc = videoBlobUrl || null
+  // Prefer blob playback for stability, but fall back to direct media:// source if blob fetch fails.
+  const playbackSrc = videoBlobUrl || (videoBlobFailed ? videoPath : null)
   const displayVideoDuration = videoDuration > 0 ? videoDuration : 0
   const seekMax = Math.max(displayVideoDuration, currentTime, 1)
   const speakerEntries = Object.entries(localSpeakerMap)

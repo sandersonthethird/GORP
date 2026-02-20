@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -133,7 +134,11 @@ export default function ChatPanel({ token, meetingTitle }: ChatPanelProps) {
                   : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700'
               }`}
             >
-              <div className="whitespace-pre-wrap">{msg.content}</div>
+              {msg.role === 'user' ? (
+                <div className="whitespace-pre-wrap">{msg.content}</div>
+              ) : (
+                <div className="summary-markdown"><ReactMarkdown>{msg.content}</ReactMarkdown></div>
+              )}
             </div>
           </div>
         ))}
@@ -141,7 +146,7 @@ export default function ChatPanel({ token, meetingTitle }: ChatPanelProps) {
         {isLoading && streamedContent && (
           <div className="flex justify-start">
             <div className="max-w-[85%] rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
-              <div className="whitespace-pre-wrap">{streamedContent}</div>
+              <div className="summary-markdown"><ReactMarkdown>{streamedContent}</ReactMarkdown></div>
             </div>
           </div>
         )}

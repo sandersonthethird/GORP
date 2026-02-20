@@ -36,6 +36,7 @@ export interface TranscriptResult {
   start: number
   duration: number
   channelIndex: number
+  fromFinalize?: boolean
 }
 
 export interface DeepgramConfig {
@@ -46,4 +47,5 @@ export interface DeepgramConfig {
   channels?: number
   encoding?: string
   maxSpeakers?: number
+  keyterms?: string[]
 }
